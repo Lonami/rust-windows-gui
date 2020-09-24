@@ -7,10 +7,12 @@ pub mod messagebox;
 pub mod window;
 
 use once_cell::sync::Lazy;
+use std::ffi::CString;
 use std::ptr;
 use std::{collections::HashMap, sync::Mutex};
-use winapi::shared::minwindef::HINSTANCE;
-use winapi::um::libloaderapi::GetModuleHandleA;
+use winapi::shared::minwindef::{HINSTANCE, MAX_PATH};
+use winapi::shared::ntdef::LPSTR;
+use winapi::um::libloaderapi::{GetModuleFileNameA, GetModuleHandleA};
 use winapi::um::winuser::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, LPMSG, MSG,
 };
@@ -37,6 +39,23 @@ pub(crate) fn base_instance() -> HINSTANCE {
     unsafe { GetModuleHandleA(std::ptr::null()) }
 }
 
+/// Retrieves the fully qualified path for the file that contains the specified module.
+/// The module must have been loaded by the current process.
+pub fn module_file_name() -> Result<CString> {
+    let module = base_instance();
+    let mut buffer = vec![0u8; MAX_PATH];
+
+    let result =
+        unsafe { GetModuleFileNameA(module, buffer.as_mut_ptr() as LPSTR, buffer.len() as u32) };
+
+    if result == 0 {
+        Err(Error::last_os_error())
+    } else {
+        buffer.truncate(result as usize);
+        Ok(CString::new(buffer)?)
+    }
+}
+
 /// Indicates to the system that a thread has made a request to terminate (quit).
 /// It is typically used in response to a `Destroy` message.
 ///
@@ -50,6 +69,9 @@ pub fn message_loop() -> i32 {
         let mut msg: MSG = std::mem::zeroed();
         while GetMessageA(&mut msg as LPMSG, ptr::null_mut(), 0, 0) > 0 {
             TranslateMessage(&mut msg as LPMSG);
+            // This effectively looks up the window corresponding to the message's window handle
+            // and calls its window procedure. Alternatively `GetWindowLong` can be used to do
+            // the same, but manually (http://winprog.org/tutorial/message_loop.html).
             DispatchMessageA(&mut msg as LPMSG);
         }
         msg.wParam as i32
