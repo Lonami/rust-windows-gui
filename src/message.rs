@@ -1,9 +1,13 @@
 use crate::messagebox;
 use winapi::shared::minwindef::{HIWORD, LOWORD, LPARAM, UINT, WPARAM};
+use winapi::shared::windef::HDC;
+use winapi::um::wingdi::{
+    GetBValue, GetGValue, GetRValue, SetBkMode, SetTextColor, CLR_INVALID, OPAQUE, RGB, TRANSPARENT,
+};
 use winapi::um::winuser::{
     MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1, MK_XBUTTON2, WM_CLOSE,
-    WM_COMMAND, WM_CREATE, WM_DESTROY, WM_INITDIALOG, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN,
-    WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY, WM_INITDIALOG,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 
 #[derive(Debug)]
@@ -14,6 +18,12 @@ pub struct MouseData {
 
 #[derive(Debug)]
 pub struct CommandData {
+    wparam: WPARAM,
+    lparam: LPARAM,
+}
+
+#[derive(Debug)]
+pub struct ColorData {
     wparam: WPARAM,
     lparam: LPARAM,
 }
@@ -31,6 +41,8 @@ pub enum Message {
     RightMouseButtonUp(MouseData),
     MiddleMouseButtonUp(MouseData),
     Command(CommandData),
+    ControlColorDialog(ColorData),
+    ControlColorStatic(ColorData),
     Other {
         msg: UINT,
         wparam: WPARAM,
@@ -128,6 +140,37 @@ impl CommandData {
     }
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/dlgbox/wm-ctlcolordlg
+// https://docs.microsoft.com/en-us/windows/win32/controls/wm-ctlcolorstatic
+impl ColorData {
+    fn hdc(&self) -> HDC {
+        self.wparam as HDC
+    }
+
+    pub fn set_text_color(&self, r: u8, g: u8, b: u8) -> std::result::Result<(u8, u8, u8), ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-settextcolor
+        let result = unsafe { SetTextColor(self.hdc(), RGB(r, g, b)) };
+        if result != CLR_INVALID {
+            Ok((GetRValue(result), GetGValue(result), GetBValue(result)))
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn set_background_transparency(&self, transparent: bool) -> std::result::Result<bool, ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkmode
+        let value = if transparent { TRANSPARENT } else { OPAQUE };
+
+        let result = unsafe { SetBkMode(self.hdc(), value as i32) };
+        match result as u32 {
+            TRANSPARENT => Ok(true),
+            OPAQUE => Ok(false),
+            0 => Err(()),
+            _ => panic!("invalid return value from SetBkMode"),
+        }
+    }
+}
+
 impl Message {
     pub(crate) fn from_raw(msg: UINT, wparam: WPARAM, lparam: LPARAM) -> Self {
         match msg {
@@ -142,6 +185,8 @@ impl Message {
             WM_RBUTTONUP => Message::RightMouseButtonUp(MouseData { wparam, lparam }),
             WM_MBUTTONUP => Message::MiddleMouseButtonUp(MouseData { wparam, lparam }),
             WM_COMMAND => Message::Command(CommandData { wparam, lparam }),
+            WM_CTLCOLORDLG => Message::ControlColorDialog(ColorData { wparam, lparam }),
+            WM_CTLCOLORSTATIC => Message::ControlColorStatic(ColorData { wparam, lparam }),
             _ => Message::Other {
                 msg,
                 wparam,

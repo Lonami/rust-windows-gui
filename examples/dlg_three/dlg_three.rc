@@ -1,0 +1,11 @@
+#include "windows.h"
+#include "resource.h"
+
+IDD_MAIN DIALOG DISCARDABLE  0, 0, 186, 46
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog tricks"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",        IDOK,       129,  7, 50, 14
+    LTEXT           "Hi there.", IDC_STATIC,  43, 16, 28,  8
+END

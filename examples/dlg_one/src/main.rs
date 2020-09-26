@@ -81,7 +81,7 @@ fn main_window_callback(
     Some(0)
 }
 
-fn about_dialog_callback(dialog: &win::window::Window, message: win::message::Message) -> bool {
+fn about_dialog_callback(dialog: &win::window::Window, message: win::message::Message) -> isize {
     use win::message::Message;
     use win::messagebox::Button;
 
@@ -92,8 +92,8 @@ fn about_dialog_callback(dialog: &win::window::Window, message: win::message::Me
             Some(Button::Cancel) => dialog.end_dialog(DLG_CANCEL).unwrap(),
             _ => {}
         },
-        _ => return false,
+        _ => return 0,
     }
 
-    true
+    1
 }

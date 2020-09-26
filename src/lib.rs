@@ -1,6 +1,8 @@
 #![cfg(windows)]
+pub mod brush;
 pub mod class;
 pub mod cursor;
+pub mod dialog;
 pub mod icon;
 pub mod menu;
 pub mod message;
@@ -21,7 +23,7 @@ use winapi::um::winuser::{
 pub use std::io::Error;
 pub type Result<T> = std::io::Result<T>;
 pub type MessageCallback = fn(&window::Window, message::Message) -> Option<isize>;
-pub type DialogCallback = fn(&window::Window, message::Message) -> bool;
+pub type DialogCallback = fn(&window::Window, message::Message) -> isize;
 
 // We want to wrap user functions to provide them with a safer interface.
 //

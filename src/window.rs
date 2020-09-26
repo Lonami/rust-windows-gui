@@ -257,7 +257,7 @@ pub unsafe extern "system" fn dlg_proc_wrapper(
             let message = message::Message::from_raw(msg, wparam, lparam);
 
             drop(lock);
-            let result = if callback(&window, message) { 1 } else { 0 };
+            let result = callback(&window, message);
 
             // No more messages will be sent to the callback, de-register it.
             if msg == WM_NCDESTROY {
@@ -450,7 +450,7 @@ impl Window<'_> {
 
     /// Creates a modal dialog box from a dialog box template resource. The function does not
     /// return control until the specified callback function terminates the modal dialog box
-    /// by calling the `Dialog::end` function.
+    /// by calling the `Window::end_dialog` function.
     pub fn show_dialog(&self, resource: u16, callback: DialogCallback) -> Result<isize> {
         let hinstance = base_instance();
         let resource = MAKEINTRESOURCEA(resource);

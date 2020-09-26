@@ -108,7 +108,7 @@ fn main_window_callback(
     Some(0)
 }
 
-fn tool_dialog_callback(_dialog: &win::window::Window, message: win::message::Message) -> bool {
+fn tool_dialog_callback(_dialog: &win::window::Window, message: win::message::Message) -> isize {
     use win::message::Message;
 
     match message {
@@ -132,8 +132,8 @@ fn tool_dialog_callback(_dialog: &win::window::Window, message: win::message::Me
             }
             _ => {}
         },
-        _ => return false,
+        _ => return 0,
     }
 
-    true
+    1
 }
