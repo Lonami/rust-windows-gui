@@ -39,13 +39,13 @@ pub enum Message {
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown
 impl MouseData {
     /// The x-coordinate of the cursor. The coordinate is relative to the upper-left corner of the client area.
-    pub fn x(&self) -> i32 {
-        (self.lparam & 0xffff) as i32
+    pub fn x(&self) -> u16 {
+        LOWORD(self.lparam as u32)
     }
 
     /// The y-coordinate of the cursor. The coordinate is relative to the upper-left corner of the client area.
-    pub fn y(&self) -> i32 {
-        ((self.lparam >> 16) & 0xffff) as i32
+    pub fn y(&self) -> u16 {
+        HIWORD(self.lparam as u32)
     }
 
     /// Whether the CTRL key is down.
