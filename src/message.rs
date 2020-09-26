@@ -1,8 +1,9 @@
+use crate::messagebox;
 use winapi::shared::minwindef::{HIWORD, LOWORD, LPARAM, UINT, WPARAM};
 use winapi::um::winuser::{
     MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1, MK_XBUTTON2, WM_CLOSE,
-    WM_COMMAND, WM_CREATE, WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
-    WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_COMMAND, WM_CREATE, WM_DESTROY, WM_INITDIALOG, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN,
+    WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 
 #[derive(Debug)]
@@ -22,6 +23,7 @@ pub enum Message {
     Create,
     Destroy,
     Close,
+    InitDialog,
     LeftMouseButtonDown(MouseData),
     RightMouseButtonDown(MouseData),
     MiddleMouseButtonDown(MouseData),
@@ -103,6 +105,27 @@ impl CommandData {
             None
         }
     }
+
+    /// The selected standard button if emitted by a control.
+    pub fn control_button(&self) -> Option<messagebox::Button> {
+        if self.lparam != 0 {
+            match messagebox::Button::from_id(LOWORD(self.wparam as u32) as i32) {
+                Ok(Some(button)) => return Some(button),
+                _ => {}
+            }
+        }
+
+        None
+    }
+
+    /// The raw data emitted by a control.
+    pub fn control_data(&self) -> Option<isize> {
+        if self.lparam != 0 {
+            Some(self.wparam as isize)
+        } else {
+            None
+        }
+    }
 }
 
 impl Message {
@@ -111,6 +134,7 @@ impl Message {
             WM_CREATE => Message::Create,
             WM_DESTROY => Message::Destroy,
             WM_CLOSE => Message::Close,
+            WM_INITDIALOG => Message::InitDialog,
             WM_LBUTTONDOWN => Message::LeftMouseButtonDown(MouseData { wparam, lparam }),
             WM_RBUTTONDOWN => Message::RightMouseButtonDown(MouseData { wparam, lparam }),
             WM_MBUTTONDOWN => Message::MiddleMouseButtonDown(MouseData { wparam, lparam }),

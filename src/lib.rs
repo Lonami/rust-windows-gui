@@ -21,6 +21,7 @@ use winapi::um::winuser::{
 pub use std::io::Error;
 pub type Result<T> = std::io::Result<T>;
 pub type MessageCallback = fn(&window::Window, message::Message) -> Option<isize>;
+pub type DialogCallback = fn(&window::Window, message::Message) -> bool;
 
 // We want to wrap user functions to provide them with a safer interface.
 //
@@ -36,6 +37,9 @@ pub type MessageCallback = fn(&window::Window, message::Message) -> Option<isize
 // Because messages may be emitted before the pointer is obtained, a special value of 0 is used
 // to indicate "newly created", and is used as a fallback.
 static HWND_TO_CALLBACK: Lazy<Mutex<HashMap<usize, MessageCallback>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+static HWND_TO_DLG_CALLBACK: Lazy<Mutex<HashMap<usize, DialogCallback>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Obtains the `hInstance` parameter from `WinMain`.

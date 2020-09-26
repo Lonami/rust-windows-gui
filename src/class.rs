@@ -117,7 +117,7 @@ pub unsafe extern "system" fn wnd_proc_wrapper(
         }
     }
 
-    return DefWindowProcA(handle, msg, wparam, lparam);
+    DefWindowProcA(handle, msg, wparam, lparam)
 }
 
 impl Builder {

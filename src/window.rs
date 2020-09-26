@@ -1,19 +1,22 @@
 use crate::{
-    base_instance, class, icon, menu, non_null_or_err, ok_or_last_err, MessageCallback, Result,
+    base_instance, class, icon, menu, message, non_null_or_err, ok_or_last_err, DialogCallback,
+    Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use winapi::ctypes::c_int;
-use winapi::shared::minwindef::{DWORD, LPARAM};
+use winapi::shared::basetsd::INT_PTR;
+use winapi::shared::minwindef::{DWORD, LPARAM, UINT, WPARAM};
 use winapi::shared::windef::{HWND, HWND__};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
-    CreateWindowExA, DestroyWindow, PostMessageA, SendMessageW, SetMenu, ShowWindow, UpdateWindow,
-    CW_USEDEFAULT, ICON_BIG, ICON_SMALL, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
-    SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA,
-    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_SETICON, WS_BORDER, WS_CAPTION, WS_CHILD,
-    WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
+    CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, PostMessageA, SendMessageW,
+    SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT, ICON_BIG, ICON_SMALL, MAKEINTRESOURCEA,
+    SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT,
+    SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE,
+    WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WS_BORDER, WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN,
+    WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
     WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
     WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
     WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
@@ -228,6 +231,50 @@ pub enum Window<'a> {
     },
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-dlgproc
+pub unsafe extern "system" fn dlg_proc_wrapper(
+    handle: HWND,
+    msg: UINT,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> INT_PTR {
+    if msg == WM_INITDIALOG {
+        // Find the dialog with handle 0 and assign it the right value.
+        let mut lock = crate::HWND_TO_DLG_CALLBACK.lock().unwrap();
+
+        let callback = lock
+            .remove(&0)
+            .expect("dialogs must start with a callback at 0");
+
+        lock.insert(handle as usize, callback);
+    }
+
+    if let Some(hwnd) = NonNull::new(handle) {
+        let lock = crate::HWND_TO_DLG_CALLBACK.lock().unwrap();
+
+        if let Some(&callback) = lock.get(&(handle as usize)) {
+            let window = Window::Borrowed { hwnd };
+            let message = message::Message::from_raw(msg, wparam, lparam);
+
+            drop(lock);
+            let result = if callback(&window, message) { 1 } else { 0 };
+
+            // No more messages will be sent to the callback, de-register it.
+            if msg == WM_NCDESTROY {
+                crate::HWND_TO_DLG_CALLBACK
+                    .lock()
+                    .unwrap()
+                    .remove(&(handle as usize))
+                    .unwrap();
+            }
+
+            return result;
+        }
+    }
+
+    0
+}
+
 impl Builder {
     /// Adds a new extended window style.
     pub fn add_extended_style(mut self, style: ExtendedStyle) -> Self {
@@ -391,6 +438,31 @@ impl Window<'_> {
         Ok(())
     }
 
+    /// Creates a modal dialog box from a dialog box template resource. The function does not
+    /// return control until the specified callback function terminates the modal dialog box
+    /// by calling the `Dialog::end` function.
+    pub fn show_dialog(&self, resource: u16, callback: DialogCallback) -> Result<isize> {
+        let hinstance = base_instance();
+        let resource = MAKEINTRESOURCEA(resource);
+        let hwnd = self.hwnd_ptr();
+
+        // Can't know what the dialog's handle is beforehand. The special value 0 will be
+        // replaced with the right value as soon as the init dialog message arrives.
+        crate::HWND_TO_DLG_CALLBACK
+            .lock()
+            .unwrap()
+            .insert(0, callback);
+
+        let result =
+            unsafe { DialogBoxParamA(hinstance, resource, hwnd, Some(dlg_proc_wrapper), 0) };
+
+        match result {
+            0 => panic!("invalid parent hwnd"),
+            -1 => Err(Error::last_os_error()),
+            n => Ok(n),
+        }
+    }
+
     /// Updates the client area of the specified window by sending a `Paint` message to the window if the window's update region is not empty. The function sends a `Paint` message directly to the window procedure of the specified window, bypassing the application queue. If the update region is empty, no message is sent.
     pub fn update(&self) -> std::result::Result<(), ()> {
         let result = unsafe { UpdateWindow(self.hwnd_ptr()) };
@@ -423,6 +495,11 @@ impl Window<'_> {
     /// Indicates to the system that a window or an application should terminate.
     pub fn close(&self) -> Result<()> {
         let result = unsafe { PostMessageA(self.hwnd_ptr(), WM_CLOSE, 0, 0) };
+        ok_or_last_err(result)
+    }
+
+    pub fn end_dialog(&self, result: isize) -> Result<()> {
+        let result = unsafe { EndDialog(self.hwnd_ptr(), result) };
         ok_or_last_err(result)
     }
 }

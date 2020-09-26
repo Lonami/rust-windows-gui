@@ -10,7 +10,7 @@ widestring = "0.4.2"
 winapi = { version = "0.3", features = ["libloaderapi", "winuser"] }
 
 [workspace]
-members = ["examples/menu_one"]
+members = ["examples/menu_one", "examples/dlg_one"]
 
 [patch.crates-io]
 winapi-app-windows = { path = "." }

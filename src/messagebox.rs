@@ -105,6 +105,24 @@ pub enum Button {
     Yes = IDYES,
 }
 
+impl Button {
+    pub(crate) fn from_id(id: i32) -> Result<Option<Self>> {
+        Ok(Some(match id {
+            0 => return Err(Error::last_os_error()),
+            IDABORT => Button::Abort,
+            IDCANCEL => Button::Cancel,
+            IDCONTINUE => Button::Continue,
+            IDIGNORE => Button::Ignore,
+            IDNO => Button::No,
+            IDOK => Button::Ok,
+            IDRETRY => Button::Retry,
+            IDTRYAGAIN => Button::TryAgain,
+            IDYES => Button::Yes,
+            _ => return Ok(None),
+        }))
+    }
+}
+
 /// If no config is provided, the message box defaults to containing one push button: OK.
 /// The first button is the default button
 pub fn message_box(caption: &str, text: &str, config: &[Config]) -> Result<Button> {
@@ -120,17 +138,6 @@ pub fn message_box(caption: &str, text: &str, config: &[Config]) -> Result<Butto
         )
     };
 
-    Ok(match result {
-        0 => return Err(Error::last_os_error()),
-        IDABORT => Button::Abort,
-        IDCANCEL => Button::Cancel,
-        IDCONTINUE => Button::Continue,
-        IDIGNORE => Button::Ignore,
-        IDNO => Button::No,
-        IDOK => Button::Ok,
-        IDRETRY => Button::Retry,
-        IDTRYAGAIN => Button::TryAgain,
-        IDYES => Button::Yes,
-        other => panic!(format!("invalid return code from message box: {}", other)),
-    })
+    Button::from_id(result)
+        .map(|x| x.expect(&format!("invalid return code from message box: {}", result)))
 }
