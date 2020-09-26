@@ -105,7 +105,7 @@ pub unsafe extern "system" fn wnd_proc_wrapper(
     if let Some(hwnd) = NonNull::new(handle) {
         let lock = crate::HWND_TO_CALLBACK.lock().unwrap();
 
-        if let Some(&callback) = lock.get(&(handle as usize)) {
+        if let Some(&callback) = lock.get(&(handle as usize)).or_else(|| lock.get(&0)) {
             let window = window::Window::Borrowed { hwnd };
             let message = message::Message::from_raw(msg, wparam, lparam);
 

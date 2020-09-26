@@ -1,24 +1,25 @@
-use crate::{base_instance, class, Error, MessageCallback, Result};
+use crate::{base_instance, class, icon, menu, Error, MessageCallback, Result};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use winapi::ctypes::c_int;
-use winapi::shared::minwindef::DWORD;
+use winapi::shared::minwindef::{DWORD, LPARAM};
 use winapi::shared::windef::{HWND, HWND__};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
-    CreateWindowExA, DestroyWindow, PostMessageA, ShowWindow, UpdateWindow, CW_USEDEFAULT,
-    SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT,
-    SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE,
-    WS_BORDER, WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME,
-    WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP,
-    WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT,
-    WS_EX_LEFTSCROLLBAR, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
-    WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW,
-    WS_EX_RIGHT, WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE,
-    WS_OVERLAPPED, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP,
-    WS_THICKFRAME, WS_VISIBLE, WS_VSCROLL,
+    CreateWindowExA, DestroyWindow, PostMessageA, SendMessageW, SetMenu, ShowWindow, UpdateWindow,
+    CW_USEDEFAULT, ICON_BIG, ICON_SMALL, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
+    SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA,
+    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_SETICON, WS_BORDER, WS_CAPTION, WS_CHILD,
+    WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
+    WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
+    WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
+    WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
+    WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW, WS_EX_RIGHT,
+    WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE, WS_OVERLAPPED,
+    WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME,
+    WS_VISIBLE, WS_VSCROLL,
 };
 
 /// Extended window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles.
@@ -286,6 +287,13 @@ impl Builder {
 
     pub fn create<'a>(self, class: &'a class::Class, name: &str) -> Result<Window<'a>> {
         let window_name = CString::new(name)?;
+
+        // Register to temporary callback under the special value 0 since hwnd is unknown but
+        // window creation produces messages.
+        if let Some(callback) = self.callback {
+            crate::HWND_TO_CALLBACK.lock().unwrap().insert(0, callback);
+        }
+
         let hwnd = unsafe {
             // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexa
             CreateWindowExA(
@@ -303,6 +311,11 @@ impl Builder {
                 std::ptr::null_mut(), // no creation data
             )
         };
+
+        // Remove the temporary callback (inside a block to drop the lock immediately).
+        {
+            crate::HWND_TO_CALLBACK.lock().unwrap().remove(&0);
+        }
 
         if let Some(hwnd) = NonNull::new(hwnd) {
             let window = Window::Owned {
@@ -341,6 +354,45 @@ impl Window<'_> {
     /// Sets a custom show state. Returns whether the window was visible before.
     pub fn set_show_state(&self, show: Show) -> bool {
         (unsafe { ShowWindow(self.hwnd_ptr(), show as c_int) }) != 0
+    }
+
+    /// Assigns a new menu to the window.
+    pub fn set_menu(&self, menu: menu::Menu) -> Result<()> {
+        let result = unsafe { SetMenu(self.hwnd_ptr(), menu.as_ptr()) };
+        if result != 0 {
+            Ok(())
+        } else {
+            Err(Error::last_os_error())
+        }
+    }
+
+    /// Associates a new large icon with a window. The system displays the large icon in the
+    /// ALT+TAB dialog box.
+    pub fn set_icon(&self, icon: icon::Icon) -> Result<()> {
+        unsafe {
+            SendMessageW(
+                self.hwnd_ptr(),
+                WM_SETICON,
+                ICON_BIG as usize,
+                icon.load_large()?.as_ptr() as LPARAM,
+            );
+        }
+        Ok(())
+    }
+
+    /// Associates a new large or small icon with a window. The system displays the small icon
+    /// in the window caption. The return value is a handle to the previous small icon. It is
+    /// `None` if the window previously had no small icon.
+    pub fn set_small_icon(&self, icon: icon::Icon) -> Result<()> {
+        unsafe {
+            SendMessageW(
+                self.hwnd_ptr(),
+                WM_SETICON,
+                ICON_SMALL as usize,
+                icon.load_small()?.as_ptr() as LPARAM,
+            );
+        }
+        Ok(())
     }
 
     /// Updates the client area of the specified window by sending a `Paint` message to the window if the window's update region is not empty. The function sends a `Paint` message directly to the window procedure of the specified window, bypassing the application queue. If the update region is empty, no message is sent.

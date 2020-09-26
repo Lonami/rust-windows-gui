@@ -2,6 +2,7 @@
 pub mod class;
 pub mod cursor;
 pub mod icon;
+pub mod menu;
 pub mod message;
 pub mod messagebox;
 pub mod window;
@@ -31,6 +32,9 @@ pub type MessageCallback = fn(&window::Window, message::Message) -> Option<isize
 //
 // The only solution is to have a single static wrapper function that queries a global map (this
 // map) to determine what to call based on the window.
+//
+// Because messages may be emitted before the pointer is obtained, a special value of 0 is used
+// to indicate "newly created", and is used as a fallback.
 static HWND_TO_CALLBACK: Lazy<Mutex<HashMap<usize, MessageCallback>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 

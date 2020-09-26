@@ -1,7 +1,7 @@
 use winapi::shared::minwindef::{HIWORD, LOWORD, LPARAM, UINT, WPARAM};
 use winapi::um::winuser::{
     MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1, MK_XBUTTON2, WM_CLOSE,
-    WM_COMMAND, WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
+    WM_COMMAND, WM_CREATE, WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
     WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 
@@ -19,6 +19,7 @@ pub struct CommandData {
 
 #[derive(Debug)]
 pub enum Message {
+    Create,
     Destroy,
     Close,
     LeftMouseButtonDown(MouseData),
@@ -107,6 +108,7 @@ impl CommandData {
 impl Message {
     pub(crate) fn from_raw(msg: UINT, wparam: WPARAM, lparam: LPARAM) -> Self {
         match msg {
+            WM_CREATE => Message::Create,
             WM_DESTROY => Message::Destroy,
             WM_CLOSE => Message::Close,
             WM_LBUTTONDOWN => Message::LeftMouseButtonDown(MouseData { wparam, lparam }),

@@ -1,11 +1,17 @@
 use crate::{base_instance, Error, Result};
+use std::path::Path;
 use std::ptr::{self, NonNull};
+use widestring::U16CString;
 use winapi::shared::windef::{HICON, HICON__};
 use winapi::um::winnt::LPCWSTR;
 use winapi::um::winuser::{
     LoadIconW, LoadImageW, IDI_APPLICATION, IDI_ERROR, IDI_INFORMATION, IDI_QUESTION, IDI_SHIELD,
-    IDI_WARNING, IDI_WINLOGO, IMAGE_ICON, MAKEINTRESOURCEW,
+    IDI_WARNING, IDI_WINLOGO, IMAGE_ICON, LR_LOADFROMFILE, MAKEINTRESOURCEW,
 };
+
+pub struct FileData {
+    path: U16CString,
+}
 
 /// Built-in icons as defined in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadicona.
 pub enum Icon {
@@ -25,9 +31,18 @@ pub enum Icon {
     WinLogo,
     /// Custom icons defined in the resource file `.rc`.
     FromResource(u16),
+    /// Custom icons stored somewhere in the disk.
+    FromFile(FileData),
 }
 
 impl Icon {
+    /// Creates a new icon from in-disk file.
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Self {
+        Icon::FromFile(FileData {
+            path: U16CString::from_os_str(path.as_ref().as_os_str()).unwrap(),
+        })
+    }
+
     // IDI* are defined as pointers which we can't use as values in the enum.
     fn value(&self) -> LPCWSTR {
         match self {
@@ -39,6 +54,7 @@ impl Icon {
             Icon::Warning => IDI_WARNING,
             Icon::WinLogo => IDI_WINLOGO,
             Icon::FromResource(value) => MAKEINTRESOURCEW(*value),
+            Icon::FromFile(data) => data.path.as_ptr(),
         }
     }
 
@@ -59,18 +75,46 @@ impl Icon {
     }
 
     pub(crate) fn load_small(&self) -> Result<NonNull<HICON__>> {
-        if matches!(self, Icon::FromResource(_)) {
-            let result =
-                unsafe { LoadImageW(base_instance(), self.value(), IMAGE_ICON, 16, 16, 0) };
+        self.load_size(16)
+    }
 
-            let result = result as HICON;
-            if let Some(icon) = NonNull::new(result) {
-                Ok(icon)
-            } else {
-                Err(Error::last_os_error())
+    pub(crate) fn load_large(&self) -> Result<NonNull<HICON__>> {
+        self.load_size(32)
+    }
+
+    fn load_size(&self, size: i32) -> Result<NonNull<HICON__>> {
+        match self {
+            Icon::FromResource(_) => {
+                let result =
+                    unsafe { LoadImageW(base_instance(), self.value(), IMAGE_ICON, size, size, 0) };
+
+                let result = result as HICON;
+                if let Some(icon) = NonNull::new(result) {
+                    Ok(icon)
+                } else {
+                    Err(Error::last_os_error())
+                }
             }
-        } else {
-            self.load()
+            Icon::FromFile(_) => {
+                let result = unsafe {
+                    LoadImageW(
+                        ptr::null_mut(),
+                        self.value(),
+                        IMAGE_ICON,
+                        size,
+                        size,
+                        LR_LOADFROMFILE,
+                    )
+                };
+
+                let result = result as HICON;
+                if let Some(icon) = NonNull::new(result) {
+                    Ok(icon)
+                } else {
+                    Err(Error::last_os_error())
+                }
+            }
+            _ => self.load(),
         }
     }
 }
