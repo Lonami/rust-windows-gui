@@ -11,13 +11,13 @@ use winapi::shared::minwindef::{DWORD, LPARAM, UINT, WPARAM};
 use winapi::shared::windef::{HWND, HWND__};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
-    CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, PostMessageA, SendMessageW,
-    SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT, ICON_BIG, ICON_SMALL, MAKEINTRESOURCEA,
-    SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT,
-    SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE,
-    WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WS_BORDER, WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN,
-    WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
-    WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
+    CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, PostMessageA,
+    SendMessageW, SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT, ICON_BIG, ICON_SMALL,
+    MAKEINTRESOURCEA, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW,
+    SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE,
+    SW_SHOWNORMAL, WM_CLOSE, WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WS_BORDER, WS_CAPTION,
+    WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES,
+    WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
     WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
     WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
     WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW, WS_EX_RIGHT,
@@ -398,6 +398,16 @@ impl Window<'_> {
         self.set_show_state(Show::ShowDefault)
     }
 
+    /// Activates the window and displays it in its current size and position.
+    pub fn show(&self) -> bool {
+        self.set_show_state(Show::Show)
+    }
+
+    /// Hides the window and activates another window.
+    pub fn hide(&self) -> bool {
+        self.set_show_state(Show::Hide)
+    }
+
     /// Sets a custom show state. Returns whether the window was visible before.
     pub fn set_show_state(&self, show: Show) -> bool {
         (unsafe { ShowWindow(self.hwnd_ptr(), show as c_int) }) != 0
@@ -461,6 +471,34 @@ impl Window<'_> {
             -1 => Err(Error::last_os_error()),
             n => Ok(n),
         }
+    }
+
+    /// Creates a modeless dialog box from a dialog box template resource.
+    /// An application can use this value to initialize dialog box controls.
+    pub fn create_dialog<'a, 'b>(
+        &'a self,
+        resource: u16,
+        callback: DialogCallback,
+    ) -> Result<Window<'b>> {
+        let hinstance = base_instance();
+        let resource = MAKEINTRESOURCEA(resource);
+        let hwnd = self.hwnd_ptr();
+
+        crate::HWND_TO_DLG_CALLBACK
+            .lock()
+            .unwrap()
+            .insert(0, callback);
+
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createdialoga
+        let result =
+            unsafe { CreateDialogParamA(hinstance, resource, hwnd, Some(dlg_proc_wrapper), 0) };
+
+        non_null_or_err(result).map(|hwnd| {
+            // Ownership is a bit tricky here because on the callback we don't have the owned window.
+            let window = Window::Borrowed { hwnd };
+
+            window
+        })
     }
 
     /// Updates the client area of the specified window by sending a `Paint` message to the window if the window's update region is not empty. The function sends a `Paint` message directly to the window procedure of the specified window, bypassing the application queue. If the update region is empty, no message is sent.
