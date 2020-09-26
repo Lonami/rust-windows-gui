@@ -1,4 +1,4 @@
-use crate::{base_instance, Error, Result};
+use crate::{base_instance, non_null_or_err, Result};
 use std::path::Path;
 use std::ptr::{self, NonNull};
 use widestring::U16CString;
@@ -66,12 +66,7 @@ impl Icon {
         };
 
         let result = unsafe { LoadIconW(handle, self.value()) };
-
-        if let Some(icon) = NonNull::new(result) {
-            Ok(icon)
-        } else {
-            Err(Error::last_os_error())
-        }
+        non_null_or_err(result)
     }
 
     pub(crate) fn load_small(&self) -> Result<NonNull<HICON__>> {
@@ -89,11 +84,7 @@ impl Icon {
                     unsafe { LoadImageW(base_instance(), self.value(), IMAGE_ICON, size, size, 0) };
 
                 let result = result as HICON;
-                if let Some(icon) = NonNull::new(result) {
-                    Ok(icon)
-                } else {
-                    Err(Error::last_os_error())
-                }
+                non_null_or_err(result)
             }
             Icon::FromFile(_) => {
                 let result = unsafe {
@@ -108,11 +99,7 @@ impl Icon {
                 };
 
                 let result = result as HICON;
-                if let Some(icon) = NonNull::new(result) {
-                    Ok(icon)
-                } else {
-                    Err(Error::last_os_error())
-                }
+                non_null_or_err(result)
             }
             _ => self.load(),
         }

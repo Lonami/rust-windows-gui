@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{non_null_or_err, Result};
 use std::ptr::{self, NonNull};
 use winapi::shared::windef::HICON__;
 use winapi::um::winnt::LPCWSTR;
@@ -73,10 +73,6 @@ impl Cursor {
             LoadCursorW(ptr::null_mut(), self.value())
         };
 
-        if let Some(cursor) = NonNull::new(result) {
-            Ok(cursor)
-        } else {
-            Err(Error::last_os_error())
-        }
+        non_null_or_err(result)
     }
 }

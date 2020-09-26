@@ -1,4 +1,6 @@
-use crate::{base_instance, class, icon, menu, Error, MessageCallback, Result};
+use crate::{
+    base_instance, class, icon, menu, non_null_or_err, ok_or_last_err, MessageCallback, Result,
+};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
@@ -317,7 +319,7 @@ impl Builder {
             crate::HWND_TO_CALLBACK.lock().unwrap().remove(&0);
         }
 
-        if let Some(hwnd) = NonNull::new(hwnd) {
+        non_null_or_err(hwnd).map(|hwnd| {
             let window = Window::Owned {
                 _window_name: window_name,
                 hwnd,
@@ -331,10 +333,8 @@ impl Builder {
                     .insert(hwnd.as_ptr() as usize, callback);
             }
 
-            Ok(window)
-        } else {
-            Err(Error::last_os_error())
-        }
+            window
+        })
     }
 }
 
@@ -359,11 +359,7 @@ impl Window<'_> {
     /// Assigns a new menu to the window.
     pub fn set_menu(&self, menu: menu::Menu) -> Result<()> {
         let result = unsafe { SetMenu(self.hwnd_ptr(), menu.as_ptr()) };
-        if result != 0 {
-            Ok(())
-        } else {
-            Err(Error::last_os_error())
-        }
+        ok_or_last_err(result)
     }
 
     /// Associates a new large icon with a window. The system displays the large icon in the
@@ -398,6 +394,8 @@ impl Window<'_> {
     /// Updates the client area of the specified window by sending a `Paint` message to the window if the window's update region is not empty. The function sends a `Paint` message directly to the window procedure of the specified window, bypassing the application queue. If the update region is empty, no message is sent.
     pub fn update(&self) -> std::result::Result<(), ()> {
         let result = unsafe { UpdateWindow(self.hwnd_ptr()) };
+
+        // `UpdateWindow` doesn't actually set last OS error if it fails.
         if result != 0 {
             Ok(())
         } else {
@@ -419,23 +417,13 @@ impl Window<'_> {
     /// `destroy` also destroys modeless dialog boxes created by the CreateDialog function.
     pub fn destroy(&self) -> Result<()> {
         let result = unsafe { DestroyWindow(self.hwnd_ptr()) };
-
-        if result != 0 {
-            Ok(())
-        } else {
-            Err(Error::last_os_error())
-        }
+        ok_or_last_err(result)
     }
 
     /// Indicates to the system that a window or an application should terminate.
     pub fn close(&self) -> Result<()> {
         let result = unsafe { PostMessageA(self.hwnd_ptr(), WM_CLOSE, 0, 0) };
-
-        if result != 0 {
-            Ok(())
-        } else {
-            Err(Error::last_os_error())
-        }
+        ok_or_last_err(result)
     }
 }
 

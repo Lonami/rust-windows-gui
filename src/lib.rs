@@ -9,9 +9,9 @@ pub mod window;
 
 use once_cell::sync::Lazy;
 use std::ffi::CString;
-use std::ptr;
+use std::ptr::{self, NonNull};
 use std::{collections::HashMap, sync::Mutex};
-use winapi::shared::minwindef::{HINSTANCE, MAX_PATH};
+use winapi::shared::minwindef::{BOOL, HINSTANCE, MAX_PATH};
 use winapi::shared::ntdef::LPSTR;
 use winapi::um::libloaderapi::{GetModuleFileNameA, GetModuleHandleA};
 use winapi::um::winuser::{
@@ -80,4 +80,18 @@ pub fn message_loop() -> i32 {
         }
         msg.wParam as i32
     }
+}
+
+/// Checks the resulting return value of a function. If it's `true`, `Ok` is returned. Otherwise,
+/// the last OS error is returned in the `Err` variant.
+pub(crate) fn ok_or_last_err(result: BOOL) -> Result<()> {
+    if result != 0 {
+        Ok(())
+    } else {
+        Err(Error::last_os_error())
+    }
+}
+
+pub(crate) fn non_null_or_err<T>(value: *mut T) -> Result<NonNull<T>> {
+    NonNull::new(value).ok_or_else(|| Error::last_os_error())
 }
