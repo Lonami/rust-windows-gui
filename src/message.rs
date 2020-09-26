@@ -1,12 +1,18 @@
-use winapi::shared::minwindef::{LPARAM, UINT, WPARAM};
+use winapi::shared::minwindef::{HIWORD, LOWORD, LPARAM, UINT, WPARAM};
 use winapi::um::winuser::{
     MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1, MK_XBUTTON2, WM_CLOSE,
-    WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN,
-    WM_RBUTTONUP,
+    WM_COMMAND, WM_DESTROY, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
+    WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 
 #[derive(Debug)]
 pub struct MouseData {
+    wparam: WPARAM,
+    lparam: LPARAM,
+}
+
+#[derive(Debug)]
+pub struct CommandData {
     wparam: WPARAM,
     lparam: LPARAM,
 }
@@ -21,6 +27,7 @@ pub enum Message {
     LeftMouseButtonUp(MouseData),
     RightMouseButtonUp(MouseData),
     MiddleMouseButtonUp(MouseData),
+    Command(CommandData),
     Other {
         msg: UINT,
         wparam: WPARAM,
@@ -28,6 +35,7 @@ pub enum Message {
     },
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown
 impl MouseData {
     /// The x-coordinate of the cursor. The coordinate is relative to the upper-left corner of the client area.
     pub fn x(&self) -> i32 {
@@ -75,6 +83,27 @@ impl MouseData {
     }
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/menurc/wm-command
+impl CommandData {
+    /// The selected menu identifier if the message source is a menu.
+    pub fn menu_id(&self) -> Option<u16> {
+        if self.lparam == 0 && HIWORD(self.wparam as u32) == 0 {
+            Some(LOWORD(self.wparam as u32))
+        } else {
+            None
+        }
+    }
+
+    /// The selected accelerator identifier if the message source is an accelerator.
+    pub fn accelerator_id(&self) -> Option<u16> {
+        if self.lparam == 0 && HIWORD(self.wparam as u32) == 1 {
+            Some(LOWORD(self.wparam as u32))
+        } else {
+            None
+        }
+    }
+}
+
 impl Message {
     pub(crate) fn from_raw(msg: UINT, wparam: WPARAM, lparam: LPARAM) -> Self {
         match msg {
@@ -86,6 +115,7 @@ impl Message {
             WM_LBUTTONUP => Message::LeftMouseButtonUp(MouseData { wparam, lparam }),
             WM_RBUTTONUP => Message::RightMouseButtonUp(MouseData { wparam, lparam }),
             WM_MBUTTONUP => Message::MiddleMouseButtonUp(MouseData { wparam, lparam }),
+            WM_COMMAND => Message::Command(CommandData { wparam, lparam }),
             _ => Message::Other {
                 msg,
                 wparam,

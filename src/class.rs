@@ -6,7 +6,7 @@ use std::num::NonZeroU16;
 use std::ptr::{self, NonNull};
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::{HBRUSH, HCURSOR, HICON, HWND};
-use winapi::um::winnt::LPCSTR;
+use winapi::um::winnt::{LPCSTR, LPSTR};
 use winapi::um::winuser::{
     DefWindowProcA, RegisterClassExA, UnregisterClassA, COLOR_ACTIVEBORDER, COLOR_ACTIVECAPTION,
     COLOR_APPWORKSPACE, COLOR_BACKGROUND, COLOR_BTNFACE, COLOR_BTNSHADOW, COLOR_BTNTEXT,
@@ -14,7 +14,7 @@ use winapi::um::winuser::{
     COLOR_INACTIVECAPTION, COLOR_MENU, COLOR_MENUTEXT, COLOR_SCROLLBAR, COLOR_WINDOW,
     COLOR_WINDOWFRAME, COLOR_WINDOWTEXT, CS_BYTEALIGNCLIENT, CS_BYTEALIGNWINDOW, CS_CLASSDC,
     CS_DBLCLKS, CS_DROPSHADOW, CS_GLOBALCLASS, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_PARENTDC,
-    CS_SAVEBITS, CS_VREDRAW, WNDCLASSEXA,
+    CS_SAVEBITS, CS_VREDRAW, MAKEINTRESOURCEA, WNDCLASSEXA,
 };
 
 /// Class styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/window-class-styles.
@@ -87,6 +87,7 @@ pub struct Builder {
     icon: HICON,
     cursor: HCURSOR,
     background: HBRUSH,
+    menu: LPSTR,
     icon_small: HICON,
 }
 
@@ -148,10 +149,17 @@ impl Builder {
         self
     }
 
+    /// Sets the menu resource constant to use. This should be the same value as the one used
+    /// in the resource file `.rc`.
+    pub fn menu(mut self, menu: u16) -> Self {
+        self.menu = MAKEINTRESOURCEA(menu);
+        self
+    }
+
     /// Replaces the default class icon with a custom one. For this, the icon has to be loaded,
     /// which may fail.
     pub fn load_small_icon(mut self, icon: icon::Icon) -> Result<Self> {
-        self.icon_small = icon.load()?.as_ptr();
+        self.icon_small = icon.load_small()?.as_ptr();
         Ok(self)
     }
 
@@ -175,7 +183,7 @@ impl Builder {
                 hIcon: self.icon,
                 hCursor: self.cursor,
                 hbrBackground: self.background,
-                lpszMenuName: std::ptr::null_mut(),
+                lpszMenuName: self.menu,
                 lpszClassName: class_name.as_ptr() as LPCSTR,
                 hIconSm: self.icon_small,
             })
@@ -228,6 +236,7 @@ pub fn build() -> Builder {
         icon: ptr::null_mut(),
         cursor: ptr::null_mut(),
         background: COLOR_WINDOW as HBRUSH,
+        menu: ptr::null_mut(),
         icon_small: ptr::null_mut(),
     }
 }
