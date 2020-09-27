@@ -113,7 +113,7 @@ fn tool_dialog_callback(_dialog: &win::window::Window, message: win::message::Me
 
     match message {
         Message::InitDialog => {}
-        Message::Command(info) => match info.control_data().map(|x| x as u16) {
+        Message::Command(info) => match info.control_data().map(|c| c.id) {
             Some(IDC_PRESS) => {
                 win::messagebox::message_box(
                     "Hi!",

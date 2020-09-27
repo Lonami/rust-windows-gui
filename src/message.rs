@@ -1,13 +1,15 @@
-use crate::messagebox;
+use crate::{messagebox, window};
+use std::ptr::NonNull;
 use winapi::shared::minwindef::{HIWORD, LOWORD, LPARAM, UINT, WPARAM};
-use winapi::shared::windef::HDC;
+use winapi::shared::windef::{HDC, HWND};
 use winapi::um::wingdi::{
     GetBValue, GetGValue, GetRValue, SetBkMode, SetTextColor, CLR_INVALID, OPAQUE, RGB, TRANSPARENT,
 };
 use winapi::um::winuser::{
-    MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1, MK_XBUTTON2, WM_CLOSE,
-    WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY, WM_INITDIALOG,
-    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    LBN_SELCHANGE, MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1,
+    MK_XBUTTON2, WM_CLOSE, WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY,
+    WM_INITDIALOG, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN,
+    WM_RBUTTONUP,
 };
 
 #[derive(Debug)]
@@ -20,6 +22,15 @@ pub struct MouseData {
 pub struct CommandData {
     wparam: WPARAM,
     lparam: LPARAM,
+}
+
+pub struct ControlData<'a> {
+    /// Control-defined notification code
+    pub code: u16,
+    /// Control identifier
+    pub id: u16,
+    /// Handle to the control window
+    pub window: window::Window<'a>,
 }
 
 #[derive(Debug)]
@@ -48,6 +59,12 @@ pub enum Message {
         wparam: WPARAM,
         lparam: LPARAM,
     },
+}
+
+#[derive(Debug)]
+pub enum ListBoxMessage {
+    SelectionChange,
+    Other { code: u16 },
 }
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown
@@ -118,25 +135,33 @@ impl CommandData {
         }
     }
 
-    /// The selected standard button if emitted by a control.
-    pub fn control_button(&self) -> Option<messagebox::Button> {
-        if self.lparam != 0 {
-            match messagebox::Button::from_id(LOWORD(self.wparam as u32) as i32) {
-                Ok(Some(button)) => return Some(button),
-                _ => {}
-            }
-        }
-
-        None
-    }
-
     /// The raw data emitted by a control.
-    pub fn control_data(&self) -> Option<isize> {
-        if self.lparam != 0 {
-            Some(self.wparam as isize)
+    pub fn control_data(&self) -> Option<ControlData> {
+        if let Some(hwnd) = NonNull::new(self.lparam as HWND) {
+            Some(ControlData {
+                code: HIWORD(self.wparam as u32),
+                id: LOWORD(self.wparam as u32),
+                window: window::Window::Borrowed { hwnd },
+            })
         } else {
             None
         }
+    }
+}
+
+impl ControlData<'_> {
+    /// Which standard button is responsible for this message, or `None` if it was emitted by
+    /// some other custom control.
+    pub fn std_button(&self) -> Option<messagebox::Button> {
+        match messagebox::Button::from_id(self.id as i32) {
+            Ok(Some(button)) => Some(button),
+            _ => None,
+        }
+    }
+
+    /// Interpret the `code` as if it was a notification emitted by a list box.
+    pub fn list_box_code(&self) -> ListBoxMessage {
+        ListBoxMessage::from_raw(self.code)
     }
 }
 
@@ -192,6 +217,15 @@ impl Message {
                 wparam,
                 lparam,
             },
+        }
+    }
+}
+
+impl ListBoxMessage {
+    pub(crate) fn from_raw(code: u16) -> Self {
+        match code {
+            LBN_SELCHANGE => ListBoxMessage::SelectionChange,
+            _ => ListBoxMessage::Other { code },
         }
     }
 }

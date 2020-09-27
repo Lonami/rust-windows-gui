@@ -87,7 +87,7 @@ fn about_dialog_callback(dialog: &win::window::Window, message: win::message::Me
 
     match message {
         Message::InitDialog => {}
-        Message::Command(info) => match info.control_button() {
+        Message::Command(info) => match info.control_data().map(|c| c.std_button()).flatten() {
             Some(Button::Ok) => dialog.end_dialog(DLG_OK).unwrap(),
             Some(Button::Cancel) => dialog.end_dialog(DLG_CANCEL).unwrap(),
             _ => {}

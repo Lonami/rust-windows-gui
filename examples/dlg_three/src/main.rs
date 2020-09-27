@@ -50,7 +50,7 @@ fn dialog_callback(dialog: &win::window::Window, message: win::message::Message)
             });
             return result;
         }
-        Message::Command(info) => match info.control_button() {
+        Message::Command(info) => match info.control_data().map(|c| c.std_button()).flatten() {
             Some(Button::Ok) => dialog.end_dialog(0).unwrap(),
             _ => {}
         },

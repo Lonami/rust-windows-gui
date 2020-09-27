@@ -7,24 +7,26 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use winapi::ctypes::c_int;
 use winapi::shared::basetsd::INT_PTR;
-use winapi::shared::minwindef::{DWORD, LPARAM, UINT, WPARAM};
+use winapi::shared::minwindef::{DWORD, LPARAM, TRUE, UINT, WPARAM};
 use winapi::shared::windef::{HWND, HWND__};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
-    CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, PostMessageA,
-    SendMessageW, SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT, ICON_BIG, ICON_SMALL,
-    MAKEINTRESOURCEA, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW,
-    SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE,
-    SW_SHOWNORMAL, WM_CLOSE, WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WS_BORDER, WS_CAPTION,
-    WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES,
-    WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
-    WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
-    WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
-    WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW, WS_EX_RIGHT,
-    WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
-    WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE, WS_OVERLAPPED,
-    WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME,
-    WS_VISIBLE, WS_VSCROLL,
+    CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, GetDlgItem,
+    PostMessageA, SendMessageA, SendMessageW, SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT,
+    ICON_BIG, ICON_SMALL, LB_ADDSTRING, LB_DELETESTRING, LB_ERR, LB_ERRSPACE, LB_GETITEMDATA,
+    LB_GETSELCOUNT, LB_GETSELITEMS, LB_RESETCONTENT, LB_SETITEMDATA, MAKEINTRESOURCEA,
+    SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT,
+    SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE,
+    WM_GETTEXT, WM_GETTEXTLENGTH, WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WM_SETTEXT, WS_BORDER,
+    WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME,
+    WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP,
+    WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT,
+    WS_EX_LEFTSCROLLBAR, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
+    WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW,
+    WS_EX_RIGHT, WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE,
+    WS_OVERLAPPED, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP,
+    WS_THICKFRAME, WS_VISIBLE, WS_VSCROLL,
 };
 
 /// Extended window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles.
@@ -539,6 +541,149 @@ impl Window<'_> {
     pub fn end_dialog(&self, result: isize) -> Result<()> {
         let result = unsafe { EndDialog(self.hwnd_ptr(), result) };
         ok_or_last_err(result)
+    }
+
+    /// Retrieves a handle to a control in the specified dialog box.
+    pub fn get_dialog_item(&self, resource: u16) -> Result<Window<'_>> {
+        // A lot of times `SendDlgItemMessage` could be used instead, which is identical to
+        // retrieving a handle to the specified control and calling the `SendMessage` function.
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-senddlgitemmessagea
+        //
+        // The alternative is to let the users perform this step explicitly, which enables reuse
+        // of all the window functions for whatever window, dialog or control is represented.
+        //
+        // We lose the ability to use some of the convenience functions the API provides, but
+        // it's often not a big deal of abstraction.
+        //
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdlgitem
+        let result = unsafe { GetDlgItem(self.hwnd_ptr(), resource as i32) };
+        non_null_or_err(result).map(|hwnd| Window::Borrowed { hwnd })
+    }
+
+    /// Retrieves the length, in characters, of the specified window's title bar text (if the
+    /// window has a title bar). If the specified window is a control, the function retrieves
+    /// the length of the text within the control.
+    pub fn get_text_len(&self) -> usize {
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextlengtha
+        // https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-gettextlength
+        let result = unsafe { SendMessageA(self.hwnd_ptr(), WM_GETTEXTLENGTH, 0, 0) };
+        result as usize
+    }
+
+    /// Retrieves the title or text associated with a control in a dialog box.
+    pub fn get_text(&self) -> String {
+        let len = self.get_text_len();
+        // +1 for the NUL character
+        let mut buffer = vec![0u8; len + 1];
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdlgitemtexta
+        // https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-gettext
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                WM_GETTEXT,
+                buffer.len(),
+                buffer.as_mut_ptr() as isize,
+            )
+        };
+        buffer.truncate(result as usize);
+        String::from_utf8(buffer).unwrap()
+    }
+
+    /// Gets the application-defined value associated with the specified list box item.
+    pub fn get_item_data(&self, index: usize) -> std::result::Result<isize, ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-getitemdata
+        let result = unsafe { SendMessageA(self.hwnd_ptr(), LB_GETITEMDATA, index, 0) };
+        if result == LB_ERR {
+            Err(())
+        } else {
+            Ok(result)
+        }
+    }
+
+    /// Sets the title or text of a control in a dialog box.
+    pub fn set_text(&self, text: &str) -> bool {
+        let text = CString::new(text).unwrap();
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdlgitemtexta
+        // https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-settext
+        let result =
+            unsafe { SendMessageA(self.hwnd_ptr(), WM_SETTEXT, 0, text.as_ptr() as isize) };
+        result == TRUE as isize
+    }
+
+    /// Gets the total number of selected items in a multiple-selection list box.
+    pub fn get_selection_count(&self) -> std::result::Result<usize, ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-getselcount
+        let result = unsafe { SendMessageA(self.hwnd_ptr(), LB_GETSELCOUNT, 0, 0) };
+        if result == LB_ERR {
+            Err(())
+        } else {
+            Ok(result as usize)
+        }
+    }
+
+    /// Fills a buffer with an array of integers that specify the item numbers of selected items
+    /// in a multiple-selection list box.
+    pub fn get_selected_items(&self) -> std::result::Result<Vec<u32>, ()> {
+        let count = self.get_selection_count()?;
+        let mut buffer = vec![0; count];
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-getselitems
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                LB_GETSELITEMS,
+                buffer.len(),
+                buffer.as_mut_ptr() as isize,
+            )
+        };
+        if result == LB_ERR {
+            Err(())
+        } else {
+            buffer.truncate(result as usize);
+            Ok(buffer)
+        }
+    }
+
+    /// Adds a string to a list box. If the list box does not have the `Sort` style, the string
+    /// is added to the end of the list. Otherwise, the string is inserted into the list and the
+    /// list is sorted.
+    pub fn add_string_item(&self, text: &str) -> std::result::Result<usize, ()> {
+        let text = CString::new(text).map_err(drop)?;
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-addstring
+        let result =
+            unsafe { SendMessageA(self.hwnd_ptr(), LB_ADDSTRING, 0, text.as_ptr() as isize) };
+
+        if result == LB_ERR || result == LB_ERRSPACE {
+            Err(())
+        } else {
+            Ok(result as usize)
+        }
+    }
+
+    /// Sets a value associated with the specified item in a list box.
+    pub fn set_item_data(&self, index: usize, data: isize) -> std::result::Result<(), ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-setitemdata
+        let result = unsafe { SendMessageA(self.hwnd_ptr(), LB_SETITEMDATA, index, data) };
+        if result == LB_ERR {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Deletes a string in a list box.
+    pub fn delete_string_item(&self, index: u32) -> std::result::Result<(), ()> {
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-deletestring
+        let result = unsafe { SendMessageA(self.hwnd_ptr(), LB_DELETESTRING, index as usize, 0) };
+        if result == LB_ERR {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn clear_content(&self) {
+        // https://docs.microsoft.com/en-us/windows/win32/controls/lb-resetcontent
+        let _result = unsafe { SendMessageA(self.hwnd_ptr(), LB_RESETCONTENT, 0, 0) };
     }
 }
 
