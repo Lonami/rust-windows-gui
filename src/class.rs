@@ -123,6 +123,17 @@ static STATIC: Class = Class::Static {
     class_name: b"Static\0",
 };
 
+// um/CommCtrl.h
+static TOOLBAR: Class = Class::Static {
+    class_name: b"ToolbarWindow32\0",
+};
+static RE_BAR: Class = Class::Static {
+    class_name: b"ReBarWindow32\0",
+};
+static STATUS: Class = Class::Static {
+    class_name: b"msctls_statusbar32\0",
+};
+
 pub unsafe extern "system" fn wnd_proc_wrapper(
     handle: HWND,
     msg: UINT,
@@ -300,4 +311,19 @@ pub fn scroll_bar() -> &'static Class {
 /// The system class for a static control.
 pub fn static_control() -> &'static Class {
     &STATIC
+}
+
+/// The common control class for a tool bar.
+pub fn toolbar() -> &'static Class {
+    &TOOLBAR
+}
+
+/// The system class for a "re-bar".
+pub fn re_bar() -> &'static Class {
+    &RE_BAR
+}
+
+/// The system class for a status bar.
+pub fn status_bar() -> &'static Class {
+    &STATUS
 }

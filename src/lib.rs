@@ -8,6 +8,7 @@ pub mod icon;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
+pub mod toolbar;
 pub mod window;
 
 use once_cell::sync::Lazy;
@@ -16,6 +17,7 @@ use std::ptr::{self, NonNull};
 use std::{collections::HashMap, sync::Mutex};
 use winapi::shared::minwindef::{BOOL, HINSTANCE, MAX_PATH};
 use winapi::shared::ntdef::LPSTR;
+use winapi::um::commctrl::InitCommonControls;
 use winapi::um::libloaderapi::{GetModuleFileNameA, GetModuleHandleA};
 use winapi::um::winuser::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, LPMSG, MSG,
@@ -48,6 +50,14 @@ static HWND_TO_DLG_CALLBACK: Lazy<Mutex<HashMap<usize, DialogCallback>>> =
 /// Obtains the `hInstance` parameter from `WinMain`.
 pub(crate) fn base_instance() -> HINSTANCE {
     unsafe { GetModuleHandleA(std::ptr::null()) }
+}
+
+/// Registers and initializes certain common control window classes.
+/// This method must be called early in the program if common controls are used.
+pub fn init_common_controls() {
+    unsafe {
+        InitCommonControls();
+    }
 }
 
 /// Retrieves the fully qualified path for the file that contains the specified module.

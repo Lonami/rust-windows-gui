@@ -1,6 +1,6 @@
 use crate::{
     base_instance, class, dialog, font, icon, menu, message, non_null_or_err, ok_or_last_err,
-    DialogCallback, Error, MessageCallback, Result,
+    toolbar, DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -9,6 +9,10 @@ use winapi::ctypes::c_int;
 use winapi::shared::basetsd::INT_PTR;
 use winapi::shared::minwindef::{DWORD, LPARAM, TRUE, UINT, WPARAM};
 use winapi::shared::windef::{HMENU, HWND, HWND__, LPRECT, RECT};
+use winapi::um::commctrl::{
+    HINST_COMMCTRL, IDB_STD_SMALL_COLOR, SB_SETPARTS, SB_SETTEXTA, TBADDBITMAP, TBBUTTON,
+    TB_ADDBITMAP, TB_ADDBUTTONSA, TB_AUTOSIZE, TB_BUTTONSTRUCTSIZE,
+};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
     CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, GetClientRect,
@@ -20,7 +24,7 @@ use winapi::um::winuser::{
     MAKEINTRESOURCEA, SWP_NOZORDER, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
     SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA,
     SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_GETTEXT, WM_GETTEXTLENGTH, WM_INITDIALOG,
-    WM_NCDESTROY, WM_SETFONT, WM_SETICON, WM_SETTEXT, WS_BORDER, WS_CAPTION, WS_CHILD,
+    WM_NCDESTROY, WM_SETFONT, WM_SETICON, WM_SETTEXT, WM_SIZE, WS_BORDER, WS_CAPTION, WS_CHILD,
     WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
     WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
     WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
@@ -112,7 +116,8 @@ pub enum ExtendedStyle {
 }
 
 /// Window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles.
-/// This includes control styles https://docs.microsoft.com/en-us/windows/win32/controls/edit-control-styles.
+/// This includes edit control styles https://docs.microsoft.com/en-us/windows/win32/controls/edit-control-styles.
+/// This includes status bar control styles https://docs.microsoft.com/en-us/windows/win32/controls/status-bar-styles.
 #[repr(u32)]
 pub enum Style {
     /// The window has a thin-line border.
@@ -280,6 +285,19 @@ pub enum Style {
     /// push button. This style has no effect on a single-line edit control. To change this style
     /// after the control has been created, use SetWindowLong.
     WantReturn = ES_WANTRETURN,
+    // TODO certain styles collide (such as these). Before they were removed but it seems more
+    //      and more will appear. Stop assigning the ID and create a method mapping variant to
+    //      the right bit flag, and potentially add back those that were removed.
+
+    /*
+    /// The status bar control will include a sizing grip at the right end of the status bar.
+    /// A sizing grip is similar to a sizing border; it is a rectangular area that the user can
+    /// click and drag to resize the parent window.
+    // StatusBarSizeGrip = SBARS_SIZEGRIP,
+
+    /// Use this style to enable tooltips.
+    // StatusBarTooltips = SBARS_TOOLTIPS,
+    */
 }
 
 /// Window show states as defined in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow.
@@ -831,6 +849,89 @@ impl Window<'_> {
         }
     }
 
+    /// Adds one or more buttons to a toolbar.
+    pub fn add_toolbar_buttons(&self, buttons: &[toolbar::Button]) -> std::result::Result<(), ()> {
+        unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                TB_BUTTONSTRUCTSIZE,
+                std::mem::size_of::<TBBUTTON>(),
+                0,
+            );
+        }
+
+        let tbab = TBADDBITMAP {
+            hInst: HINST_COMMCTRL,
+            nID: IDB_STD_SMALL_COLOR,
+        };
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                TB_ADDBITMAP,
+                0,
+                &tbab as *const TBADDBITMAP as isize,
+            )
+        };
+        if result == -1 {
+            return Err(());
+        }
+
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                TB_ADDBUTTONSA,
+                buttons.len(),
+                buttons.as_ptr() as isize,
+            )
+        };
+
+        if result != 0 {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    /// Sets the number of parts in a status window and the coordinate of the right edge of each
+    /// part. Each element specifies the position, in client coordinates, of the right edge of the
+    /// corresponding part. If an element is -1, the right edge of the corresponding part extends
+    /// to the border of the window.
+    pub fn set_toolbar_parts(&self, parts: &[i32]) -> std::result::Result<(), ()> {
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                SB_SETPARTS,
+                parts.len(),
+                parts.as_ptr() as isize,
+            )
+        };
+
+        if result != 0 {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    /// Sets the text in the specified part of a status window.
+    pub fn set_toolbar_text(&self, index: u8, text: &str) -> std::result::Result<(), ()> {
+        let text = CString::new(text).unwrap();
+        let result = unsafe {
+            SendMessageA(
+                self.hwnd_ptr(),
+                SB_SETTEXTA,
+                index as usize,
+                text.as_ptr() as isize,
+            )
+        };
+
+        if result != 0 {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     /// Adds a string to a list box. If the list box does not have the `Sort` style, the string
     /// is added to the end of the list. Otherwise, the string is inserted into the list and the
     /// list is sorted.
@@ -872,6 +973,16 @@ impl Window<'_> {
     pub fn clear_content(&self) {
         // https://docs.microsoft.com/en-us/windows/win32/controls/lb-resetcontent
         let _result = unsafe { SendMessageA(self.hwnd_ptr(), LB_RESETCONTENT, 0, 0) };
+    }
+
+    /// Causes the toolbar to be resized.
+    pub fn auto_size_toolbar(&self) {
+        let _result = unsafe { SendMessageA(self.hwnd_ptr(), TB_AUTOSIZE, 0, 0) };
+    }
+
+    /// Causes the window to be resized with width and height of 0.
+    pub fn restore(&self) {
+        let _result = unsafe { SendMessageA(self.hwnd_ptr(), WM_SIZE, 0, 0) };
     }
 }
 
