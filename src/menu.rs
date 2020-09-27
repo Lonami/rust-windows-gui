@@ -1,8 +1,10 @@
 use crate::{non_null_or_err, ok_or_last_err, Result};
 use std::ffi::CString;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 use winapi::shared::windef::{HMENU, HMENU__};
-use winapi::um::winuser::{AppendMenuA, CreateMenu, CreatePopupMenu, MF_POPUP, MF_STRING};
+use winapi::um::winuser::{
+    AppendMenuA, CreateMenu, CreatePopupMenu, MF_POPUP, MF_SEPARATOR, MF_STRING,
+};
 
 pub struct Menu {
     menu: NonNull<HMENU__>,
@@ -36,6 +38,13 @@ impl Menu {
         let result =
             unsafe { AppendMenuA(self.menu.as_ptr(), MF_STRING, value as usize, name.as_ptr()) };
 
+        ok_or_last_err(result)
+    }
+
+    /// Creates an inactive menu item that serves as a dividing bar between two active menu items
+    /// on a menu.
+    pub fn append_separator(&self) -> Result<()> {
+        let result = unsafe { AppendMenuA(self.menu.as_ptr(), MF_SEPARATOR, 0, ptr::null_mut()) };
         ok_or_last_err(result)
     }
 

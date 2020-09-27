@@ -1,5 +1,5 @@
 use crate::{
-    base_instance, class, font, icon, menu, message, non_null_or_err, ok_or_last_err,
+    base_instance, class, dialog, font, icon, menu, message, non_null_or_err, ok_or_last_err,
     DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
@@ -523,7 +523,7 @@ impl<'a> Builder<'a> {
 }
 
 impl Window<'_> {
-    fn hwnd_ptr(&self) -> HWND {
+    pub(crate) fn hwnd_ptr(&self) -> HWND {
         match self {
             Window::Owned { hwnd, .. } => hwnd.as_ptr(),
             Window::Borrowed { hwnd } => hwnd.as_ptr(),
@@ -683,6 +683,12 @@ impl Window<'_> {
 
             window
         })
+    }
+
+    /// Builder to initialize an Open or Save As dialog box. After the user closes the dialog
+    /// box, the system returns information about the user's selection.
+    pub fn open_file<'a>(&'a self) -> dialog::OpenFileBuilder<'a> {
+        dialog::OpenFileBuilder::new(self)
     }
 
     /// Updates the client area of the specified window by sending a `Paint` message to the window if the window's update region is not empty. The function sends a `Paint` message directly to the window procedure of the specified window, bypassing the application queue. If the update region is empty, no message is sent.
