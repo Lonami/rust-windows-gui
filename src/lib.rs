@@ -3,6 +3,7 @@ pub mod brush;
 pub mod class;
 pub mod cursor;
 pub mod dialog;
+pub mod font;
 pub mod icon;
 pub mod menu;
 pub mod message;

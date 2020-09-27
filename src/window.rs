@@ -1,32 +1,35 @@
 use crate::{
-    base_instance, class, icon, menu, message, non_null_or_err, ok_or_last_err, DialogCallback,
-    Error, MessageCallback, Result,
+    base_instance, class, font, icon, menu, message, non_null_or_err, ok_or_last_err,
+    DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 use winapi::ctypes::c_int;
 use winapi::shared::basetsd::INT_PTR;
 use winapi::shared::minwindef::{DWORD, LPARAM, TRUE, UINT, WPARAM};
-use winapi::shared::windef::{HWND, HWND__};
+use winapi::shared::windef::{HMENU, HWND, HWND__, LPRECT, RECT};
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
-    CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, GetDlgItem,
-    PostMessageA, SendMessageA, SendMessageW, SetMenu, ShowWindow, UpdateWindow, CW_USEDEFAULT,
-    ICON_BIG, ICON_SMALL, LB_ADDSTRING, LB_DELETESTRING, LB_ERR, LB_ERRSPACE, LB_GETITEMDATA,
-    LB_GETSELCOUNT, LB_GETSELITEMS, LB_RESETCONTENT, LB_SETITEMDATA, MAKEINTRESOURCEA,
-    SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT,
-    SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE,
-    WM_GETTEXT, WM_GETTEXTLENGTH, WM_INITDIALOG, WM_NCDESTROY, WM_SETICON, WM_SETTEXT, WS_BORDER,
-    WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME,
-    WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP,
-    WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT,
-    WS_EX_LEFTSCROLLBAR, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
-    WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW,
-    WS_EX_RIGHT, WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE,
-    WS_OVERLAPPED, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP,
-    WS_THICKFRAME, WS_VISIBLE, WS_VSCROLL,
+    CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, GetClientRect,
+    GetDlgItem, PostMessageA, SendMessageA, SendMessageW, SetMenu, SetWindowPos, ShowWindow,
+    UpdateWindow, CW_USEDEFAULT, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LOWERCASE,
+    ES_MULTILINE, ES_NOHIDESEL, ES_NUMBER, ES_OEMCONVERT, ES_PASSWORD, ES_READONLY, ES_RIGHT,
+    ES_UPPERCASE, ES_WANTRETURN, ICON_BIG, ICON_SMALL, LB_ADDSTRING, LB_DELETESTRING, LB_ERR,
+    LB_ERRSPACE, LB_GETITEMDATA, LB_GETSELCOUNT, LB_GETSELITEMS, LB_RESETCONTENT, LB_SETITEMDATA,
+    MAKEINTRESOURCEA, SWP_NOZORDER, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
+    SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA,
+    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_GETTEXT, WM_GETTEXTLENGTH, WM_INITDIALOG,
+    WM_NCDESTROY, WM_SETFONT, WM_SETICON, WM_SETTEXT, WS_BORDER, WS_CAPTION, WS_CHILD,
+    WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
+    WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
+    WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
+    WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
+    WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW, WS_EX_RIGHT,
+    WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE, WS_OVERLAPPED,
+    WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME,
+    WS_VISIBLE, WS_VSCROLL,
 };
 
 /// Extended window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles.
@@ -109,6 +112,7 @@ pub enum ExtendedStyle {
 }
 
 /// Window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles.
+/// This includes control styles https://docs.microsoft.com/en-us/windows/win32/controls/edit-control-styles.
 #[repr(u32)]
 pub enum Style {
     /// The window has a thin-line border.
@@ -117,22 +121,37 @@ pub enum Style {
     /// The window has a title bar (includes the `Border` style).
     Caption = WS_CAPTION,
 
-    /// The window is a child window. A window with this style cannot have a menu bar. This style cannot be used with the `Popup` style.
+    /// The window is a child window. A window with this style cannot have a menu bar.
+    /// This style cannot be used with the `Popup` style.
     Child = WS_CHILD,
 
-    /// Excludes the area occupied by child windows when drawing occurs within the parent window. This style is used when creating the parent window.
+    /// Excludes the area occupied by child windows when drawing occurs within the parent window.
+    /// This style is used when creating the parent window.
     ClipChildren = WS_CLIPCHILDREN,
 
-    /// Clips child windows relative to each other; that is, when a particular child window receives a `Paint` message, the `ClipSiblings` style clips all other overlapping child windows out of the region of the child window to be updated. If `ClipSiblings` is not specified and child windows overlap, it is possible, when drawing within the client area of a child window, to draw within the client area of a neighboring child window.
+    /// Clips child windows relative to each other; that is, when a particular child window
+    /// receives a `Paint` message, the `ClipSiblings` style clips all other overlapping child
+    /// windows out of the region of the child window to be updated. If `ClipSiblings` is not
+    /// specified and child windows overlap, it is possible, when drawing within the client area
+    /// of a child window, to draw within the client area of a neighboring child window.
     ClipSiblings = WS_CLIPSIBLINGS,
 
-    /// The window is initially disabled. A disabled window cannot receive input from the user. To change this after a window has been created, use the `Window::enable` function.
+    /// The window is initially disabled. A disabled window cannot receive input from the user.
+    /// To change this after a window has been created, use the `Window::enable` function.
     Disabled = WS_DISABLED,
 
-    /// The window has a border of a style typically used with dialog boxes. A window with this style cannot have a title bar.
+    /// The window has a border of a style typically used with dialog boxes. A window with this
+    /// style cannot have a title bar.
     DialogFrame = WS_DLGFRAME,
 
-    /// The window is the first control of a group of controls. The group consists of this first control and all controls defined after it, up to the next control with the `Group` style. The first control in each group usually has the `TabStop` style so that the user can move from group to group. The user can subsequently change the keyboard focus from one control in the group to the next control in the group by using the direction keys. You can turn this style on and off to change dialog box navigation. To change this style after a window has been created, use the SetWindowLong function. The window has a minimize button. Cannot be combined with the `ContextHelp` style. The `SysMenu` style must also be specified.
+    /// The window is the first control of a group of controls. The group consists of this first
+    /// control and all controls defined after it, up to the next control with the `Group` style.
+    /// The first control in each group usually has the `TabStop` style so that the user can move
+    /// from group to group. The user can subsequently change the keyboard focus from one control
+    /// in the group to the next control in the group by using the direction keys. You can turn
+    /// this style on and off to change dialog box navigation. To change this style after a window
+    /// has been created, use the SetWindowLong function. The window has a minimize button. Cannot
+    /// be combined with the `ContextHelp` style. The `SysMenu` style must also be specified.
     Group = WS_GROUP,
 
     /// The window has a horizontal scroll bar.
@@ -144,7 +163,9 @@ pub enum Style {
     /// The window is initially minimized. Same as the `Iconic` style.
     Minimize = WS_MINIMIZE,
 
-    /// The window is an overlapped window. An overlapped window has a title bar and a border. Same as the `Tiled` style.
+    /// The window is an overlapped window. An overlapped window has a title bar and a border.
+    /// Same as the `Tiled` style. Text is aligned with the left margin (edit `Left` style).
+    /// This is the default.
     Overlapped = WS_OVERLAPPED,
 
     /// The window is an overlapped window. Same as the `TileWindow` style.
@@ -153,23 +174,112 @@ pub enum Style {
     /// The window is a pop-up window. This style cannot be used with the `Child` style.
     Popup = WS_POPUP,
 
-    /// The window is a pop-up window. The `Caption` and `PopupWindow` styles must be combined to make the window menu visible.
+    /// The window is a pop-up window. The `Caption` and `PopupWindow` styles must be combined
+    /// to make the window menu visible.
     PopupWindow = WS_POPUPWINDOW,
 
     /// The window has a window menu on its title bar. The `Caption` style must also be specified.
     SysMenu = WS_SYSMENU,
 
-    /// The window is a control that can receive the keyboard focus when the user presses the TAB key. Pressing the TAB key changes the keyboard focus to the next control with the `TabStop` style. You can turn this style on and off to change dialog box navigation. To change this style after a window has been created, use the SetWindowLong function. For user-created windows and modeless dialogs to work with tab stops, alter the message loop to call the IsDialogMessage function. The window has a maximize button. Cannot be combined with the `ContextHelp` style. The `SysMenu` style must also be specified.
+    /// The window is a control that can receive the keyboard focus when the user presses the TAB
+    /// key. Pressing the TAB key changes the keyboard focus to the next control with the `TabStop`
+    /// style. You can turn this style on and off to change dialog box navigation. To change this
+    /// style after a window has been created, use the SetWindowLong function. For user-created
+    /// windows and modeless dialogs to work with tab stops, alter the message loop to call the
+    /// IsDialogMessage function. The window has a maximize button. Cannot be combined with the
+    /// `ContextHelp` style. The `SysMenu` style must also be specified.
     TabStop = WS_TABSTOP,
 
     /// The window has a sizing border. Same as the `SizeBox` style.
     ThickFrame = WS_THICKFRAME,
 
-    /// The window is initially visible. This style can be turned on and off by using the `Window::show` or `Window::set_pos` function.
+    /// The window is initially visible. This style can be turned on and off by using the
+    /// `Window::show` or `Window::set_pos` function.
     Visible = WS_VISIBLE,
 
     /// The window has a vertical scroll bar.
     VerticalScroll = WS_VSCROLL,
+
+    /// Automatically scrolls text to the right by 10 characters when the user types a character
+    /// at the end of the line. When the user presses the ENTER key, the control scrolls all text
+    /// back to position zero.
+    AutoHorizontalScroll = ES_AUTOHSCROLL,
+
+    /// Automatically scrolls text up one page when the user presses the ENTER key on the last line.
+    AutoVerticalScroll = ES_AUTOVSCROLL,
+
+    /// Centers text in a single-line or multiline edit control.
+    Center = ES_CENTER,
+
+    /// Converts all characters to lowercase as they are typed into the edit control. To change
+    /// this style after the control has been created, use SetWindowLong.
+    Lowercase = ES_LOWERCASE,
+
+    /// Designates a multiline edit control. The default is single-line edit control. When the
+    /// multiline edit control is in a dialog box, the default response to pressing the ENTER
+    /// key is to activate the default button. To use the ENTER key as a carriage return, use
+    /// the `WantReturn` style. When the multiline edit control is not in a dialog box and the
+    /// `AutoVerticalScroll` style is specified, the edit control shows as many lines as possible
+    /// and scrolls vertically when the user presses the ENTER key. If you do not specify
+    /// `AutoVerticalScroll`, the edit control shows as many lines as possible and beeps if the
+    /// user presses the ENTER key when no more lines can be displayed. If you specify the
+    /// `AutoHorizontalScroll` style, the multiline edit control automatically scrolls
+    /// horizontally when the caret goes past the right edge of the control. To start a new line,
+    /// the user must press the ENTER key. If you do not specify `AutoHorizontalScroll`, the
+    /// control automatically wraps words to the beginning of the next line when necessary. A new
+    /// line is also started if the user presses the ENTER key. The window size determines the
+    /// position of the Wordwrap. If the window size changes, the Wordwrapping position changes
+    /// and the text is redisplayed. Multiline edit controls can have scroll bars. An edit control
+    /// with scroll bars processes its own scroll bar messages. Note that edit controls without
+    /// scroll bars scroll as described in the previous paragraphs and process any scroll messages
+    /// sent by the parent window.
+    Multiline = ES_MULTILINE,
+
+    /// Negates the default behavior for an edit control. The default behavior hides the selection
+    /// when the control loses the input focus and inverts the selection when the control receives
+    /// the input focus. If you specify `NoHideSelection`, the selected text is inverted, even if
+    /// the control does not have the focus.
+    NoHideSelection = ES_NOHIDESEL,
+
+    /// Allows only digits to be entered into the edit control. Note that, even with this set, it
+    /// is still possible to paste non-digits into the edit control. To change this style after
+    /// the control has been created, use SetWindowLong. To translate text that was entered into
+    /// the edit control to an integer value, use the GetDlgItemInt function. To set the text of
+    /// the edit control to the string representation of a specified integer, use the
+    /// SetDlgItemInt function.
+    Number = ES_NUMBER,
+
+    /// Converts text entered in the edit control. The text is converted from the Windows
+    /// character set to the OEM character set and then back to the Windows character set. This
+    /// ensures proper character conversion when the application calls the CharToOem function to
+    /// convert a Windows string in the edit control to OEM characters. This style is most useful
+    /// for edit controls that contain file names that will be used on file systems that do not
+    /// support Unicode. To change this style after the control has been created, use
+    /// SetWindowLong.
+    OemConvert = ES_OEMCONVERT,
+
+    /// Displays an asterisk (*) for each character typed into the edit control. This style is
+    /// valid only for single-line edit controls. To change the characters that is displayed, or
+    /// set or clear this style, use the `SetPasswordChar` message.
+    Password = ES_PASSWORD,
+
+    /// Prevents the user from typing or editing text in the edit control. To change this style
+    /// after the control has been created, use the `SetReadonly` message.
+    Readonly = ES_READONLY,
+
+    /// Right-aligns text in a single-line or multiline edit control.
+    Right = ES_RIGHT,
+
+    /// Converts all characters to uppercase as they are typed into the edit control. To change
+    /// this style after the control has been created, use SetWindowLong.
+    Uppercase = ES_UPPERCASE,
+
+    /// Specifies that a carriage return be inserted when the user presses the ENTER key while
+    /// entering text into a multiline edit control in a dialog box. If you do not specify this
+    /// style, pressing the ENTER key has the same effect as pressing the dialog box's default
+    /// push button. This style has no effect on a single-line edit control. To change this style
+    /// after the control has been created, use SetWindowLong.
+    WantReturn = ES_WANTRETURN,
 }
 
 /// Window show states as defined in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow.
@@ -212,13 +322,15 @@ pub enum Show {
     ShowNormal = SW_SHOWNORMAL,
 }
 
-pub struct Builder {
+pub struct Builder<'a> {
     extended_style: DWORD,
     style: DWORD,
     x: i32,
     y: i32,
     width: i32,
     height: i32,
+    parent: Option<&'a Window<'a>>,
+    menu: HMENU,
     callback: Option<MessageCallback>,
 }
 
@@ -277,7 +389,7 @@ pub unsafe extern "system" fn dlg_proc_wrapper(
     0
 }
 
-impl Builder {
+impl<'a> Builder<'a> {
     /// Adds a new extended window style.
     pub fn add_extended_style(mut self, style: ExtendedStyle) -> Self {
         self.extended_style |= style as DWORD;
@@ -330,14 +442,33 @@ impl Builder {
         self
     }
 
+    /// A handle to the parent or owner window of the window being created. To create a child
+    /// window or an owned window, supply a valid window handle. This parameter is optional for
+    /// pop-up windows.
+    pub fn parent(mut self, parent: &'a Window) -> Self {
+        self.parent = Some(parent);
+        self
+    }
+
+    /// Configures the window to be a child-window, and then sets its identifier.
+    /// The identifier must be unique for all child windows with the same parent window.
+    pub fn set_child_id(mut self, id: u16) -> Self {
+        self.style |= WS_CHILD;
+        self.menu = id as usize as HMENU;
+        self
+    }
+
     /// Callback that will process messages sent to this window.
     pub fn set_message_callback(mut self, callback: MessageCallback) -> Self {
         self.callback = Some(callback);
         self
     }
 
-    pub fn create<'a>(self, class: &'a class::Class, name: &str) -> Result<Window<'a>> {
+    /// Creates the window. If it has a parent, dropping the window won't destroy the control,
+    /// because it will be unusable when the parent is dropped instead.
+    pub fn create<'b>(self, class: &'b class::Class, name: &str) -> Result<Window<'b>> {
         let window_name = CString::new(name)?;
+        let parent = self.parent.map(|w| w.hwnd_ptr()).unwrap_or(ptr::null_mut());
 
         // Register to temporary callback under the special value 0 since hwnd is unknown but
         // window creation produces messages.
@@ -356,10 +487,10 @@ impl Builder {
                 self.y,
                 self.width,
                 self.height,
-                std::ptr::null_mut(), // no parent
-                std::ptr::null_mut(), // no class menu
+                parent,
+                self.menu,
                 base_instance(),
-                std::ptr::null_mut(), // no creation data
+                ptr::null_mut(), // no creation data
             )
         };
 
@@ -369,10 +500,14 @@ impl Builder {
         }
 
         non_null_or_err(hwnd).map(|hwnd| {
-            let window = Window::Owned {
-                _window_name: window_name,
-                hwnd,
-                _marker: PhantomData,
+            let window = if self.parent.is_none() {
+                Window::Owned {
+                    _window_name: window_name,
+                    hwnd,
+                    _marker: PhantomData,
+                }
+            } else {
+                Window::Borrowed { hwnd }
             };
 
             if let Some(callback) = self.callback {
@@ -448,6 +583,53 @@ impl Window<'_> {
             );
         }
         Ok(())
+    }
+
+    /// Sets the font that a control is to use when drawing text.
+    pub fn set_font(&self, font: font::Font) {
+        unsafe {
+            SendMessageW(self.hwnd_ptr(), WM_SETFONT, font.as_ptr() as usize, 0);
+        }
+    }
+
+    /// Retrieves the coordinates of a window's client area. The client coordinates specify the
+    /// upper-left and lower-right corners of the client area. Because client coordinates are
+    // relative to the upper-left corner of a window's client area, the coordinates of the
+    /// upper-left corner are (0, 0).
+    pub fn get_rect(&self) -> Result<(i32, i32, i32, i32)> {
+        let mut rect = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
+        let result = unsafe { GetClientRect(self.hwnd_ptr(), &mut rect as LPRECT) };
+        ok_or_last_err(result).map(|_| {
+            (
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+            )
+        })
+    }
+
+    /// Changes the size and position of a child, pop-up, or top-level window.
+    /// These windows are ordered according to their appearance on the screen.
+    /// The topmost window receives the highest rank and is the first window in the Z order.
+    pub fn set_rect(&self, x: i32, y: i32, width: i32, height: i32) -> Result<()> {
+        let result = unsafe {
+            SetWindowPos(
+                self.hwnd_ptr(),
+                ptr::null_mut(),
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER,
+            )
+        };
+        ok_or_last_err(result)
     }
 
     /// Creates a modal dialog box from a dialog box template resource. The function does not
@@ -705,7 +887,7 @@ impl Drop for Window<'_> {
     }
 }
 
-pub fn build() -> Builder {
+pub fn build() -> Builder<'static> {
     Builder {
         extended_style: 0,
         style: 0,
@@ -713,6 +895,8 @@ pub fn build() -> Builder {
         y: CW_USEDEFAULT,
         width: CW_USEDEFAULT,
         height: CW_USEDEFAULT,
+        parent: None,
+        menu: ptr::null_mut(),
         callback: None,
     }
 }

@@ -91,10 +91,37 @@ pub struct Builder {
     icon_small: HICON,
 }
 
-pub struct Class {
-    class_name: CString,
-    atom: Option<NonZeroU16>,
+pub enum Class {
+    Owned {
+        class_name: CString,
+        atom: NonZeroU16,
+    },
+    Static {
+        class_name: &'static [u8],
+    },
 }
+
+static BUTTON: Class = Class::Static {
+    class_name: b"Button\0",
+};
+static COMBO_BOX: Class = Class::Static {
+    class_name: b"ComboBox\0",
+};
+static EDIT_CONTROL: Class = Class::Static {
+    class_name: b"Edit\0",
+};
+static LIST_BOX: Class = Class::Static {
+    class_name: b"ListBox\0",
+};
+static MDI_CLIENT: Class = Class::Static {
+    class_name: b"MDIClient\0",
+};
+static SCROLL_BAR: Class = Class::Static {
+    class_name: b"ScrollBar\0",
+};
+static STATIC: Class = Class::Static {
+    class_name: b"Static\0",
+};
 
 pub unsafe extern "system" fn wnd_proc_wrapper(
     handle: HWND,
@@ -190,10 +217,7 @@ impl Builder {
         };
 
         if let Some(atom) = NonZeroU16::new(atom) {
-            Ok(Class {
-                class_name,
-                atom: Some(atom),
-            })
+            Ok(Class::Owned { class_name, atom })
         } else {
             Err(Error::last_os_error())
         }
@@ -202,29 +226,31 @@ impl Builder {
 
 impl Class {
     pub(crate) fn class_name_ptr(&self) -> LPCSTR {
-        if let Some(atom) = self.atom {
-            // The atom must be in the low-order word of lpClassName; the high-order word must be zero.
-            atom.get() as usize as LPCSTR
-        } else {
-            self.class_name.as_ptr() as LPCSTR
+        match self {
+            Class::Owned { atom, .. } => {
+                // The atom must be in the low-order word of lpClassName; the high-order word must be zero.
+                atom.get() as usize as LPCSTR
+            }
+            Class::Static { class_name } => class_name.as_ptr() as LPCSTR,
         }
     }
 }
 
 impl Drop for Class {
     fn drop(&mut self) {
-        // No atom means it's a system class we don't need to destroy
-        if self.atom.is_none() {
-            return;
-        }
+        match self {
+            Class::Owned { .. } => {
+                let result =
+                    unsafe { UnregisterClassA(self.class_name_ptr(), std::ptr::null_mut()) };
 
-        let result = unsafe { UnregisterClassA(self.class_name_ptr(), std::ptr::null_mut()) };
-
-        if result == 0 {
-            panic!(format!(
-                "class deleted by other means or some window still alive: {}",
-                Error::last_os_error()
-            ))
+                if result == 0 {
+                    panic!(format!(
+                        "class deleted by other means or some window still alive: {}",
+                        Error::last_os_error()
+                    ))
+                }
+            }
+            Class::Static { .. } => {}
         }
     }
 }
@@ -242,57 +268,36 @@ pub fn build() -> Builder {
 }
 
 /// The system class for a button.
-pub fn button() -> Class {
-    Class {
-        class_name: CString::new("Button").unwrap(),
-        atom: None,
-    }
+pub fn button() -> &'static Class {
+    &BUTTON
 }
 
 /// The system class for a combo box.
-pub fn combo_box() -> Class {
-    Class {
-        class_name: CString::new("ComboBox").unwrap(),
-        atom: None,
-    }
+pub fn combo_box() -> &'static Class {
+    &COMBO_BOX
 }
 
 /// The system class for an edit control.
-pub fn edit_control() -> Class {
-    Class {
-        class_name: CString::new("Edit").unwrap(),
-        atom: None,
-    }
+pub fn edit_control() -> &'static Class {
+    &EDIT_CONTROL
 }
 
 /// The system class for a list box.
-pub fn list_box() -> Class {
-    Class {
-        class_name: CString::new("ListBox").unwrap(),
-        atom: None,
-    }
+pub fn list_box() -> &'static Class {
+    &LIST_BOX
 }
 
 /// The system class for an MDI client window.
-pub fn mdi_client() -> Class {
-    Class {
-        class_name: CString::new("MDIClient").unwrap(),
-        atom: None,
-    }
+pub fn mdi_client() -> &'static Class {
+    &MDI_CLIENT
 }
 
 /// The system class for a scroll bar.
-pub fn scroll_bar() -> Class {
-    Class {
-        class_name: CString::new("ScrollBar").unwrap(),
-        atom: None,
-    }
+pub fn scroll_bar() -> &'static Class {
+    &SCROLL_BAR
 }
 
 /// The system class for a static control.
-pub fn static_control() -> Class {
-    Class {
-        class_name: CString::new("Static").unwrap(),
-        atom: None,
-    }
+pub fn static_control() -> &'static Class {
+    &STATIC
 }

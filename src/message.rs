@@ -7,10 +7,17 @@ use winapi::um::wingdi::{
 };
 use winapi::um::winuser::{
     LBN_SELCHANGE, MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1,
-    MK_XBUTTON2, WM_CLOSE, WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY,
-    WM_INITDIALOG, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN,
-    WM_RBUTTONUP,
+    MK_XBUTTON2, SIZE_MAXHIDE, SIZE_MAXIMIZED, SIZE_MAXSHOW, SIZE_MINIMIZED, SIZE_RESTORED,
+    WM_CLOSE, WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY, WM_INITDIALOG,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_SIZE,
 };
+
+#[derive(Debug)]
+pub struct SizeData {
+    wparam: WPARAM,
+    lparam: LPARAM,
+}
 
 #[derive(Debug)]
 pub struct MouseData {
@@ -42,6 +49,7 @@ pub struct ColorData {
 #[derive(Debug)]
 pub enum Message {
     Create,
+    Size(SizeData),
     Destroy,
     Close,
     InitDialog,
@@ -65,6 +73,45 @@ pub enum Message {
 pub enum ListBoxMessage {
     SelectionChange,
     Other { code: u16 },
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-size
+impl SizeData {
+    /// `true` if the message was sent to all pop-up windows when some other window is maximized.
+    pub fn maximize_hide(&self) -> bool {
+        self.wparam == SIZE_MAXHIDE
+    }
+
+    /// `true` if the window has been maximized.
+    pub fn maximized(&self) -> bool {
+        self.wparam == SIZE_MAXIMIZED
+    }
+
+    /// `true` if the message was sent to all pop-up windows when some other window has been
+    /// restored to its former size.
+    pub fn maximize_show(&self) -> bool {
+        self.wparam == SIZE_MAXSHOW
+    }
+
+    /// `true` if the window has been minimized.
+    pub fn minimized(&self) -> bool {
+        self.wparam == SIZE_MINIMIZED
+    }
+
+    /// `true` if the window has been resized, but neither the `minimized` nor `maximized` value applies.
+    pub fn restored(&self) -> bool {
+        self.wparam == SIZE_RESTORED
+    }
+
+    /// The new width of the client area.
+    pub fn width(&self) -> u16 {
+        LOWORD(self.lparam as u32)
+    }
+
+    /// The new height of the client area.
+    pub fn height(&self) -> u16 {
+        HIWORD(self.lparam as u32)
+    }
 }
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown
@@ -200,6 +247,7 @@ impl Message {
     pub(crate) fn from_raw(msg: UINT, wparam: WPARAM, lparam: LPARAM) -> Self {
         match msg {
             WM_CREATE => Message::Create,
+            WM_SIZE => Message::Size(SizeData { wparam, lparam }),
             WM_DESTROY => Message::Destroy,
             WM_CLOSE => Message::Close,
             WM_INITDIALOG => Message::InitDialog,
