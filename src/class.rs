@@ -8,13 +8,16 @@ use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::{HBRUSH, HCURSOR, HICON, HWND};
 use winapi::um::winnt::{LPCSTR, LPSTR};
 use winapi::um::winuser::{
-    DefWindowProcA, RegisterClassExA, UnregisterClassA, COLOR_ACTIVEBORDER, COLOR_ACTIVECAPTION,
-    COLOR_APPWORKSPACE, COLOR_BACKGROUND, COLOR_BTNFACE, COLOR_BTNSHADOW, COLOR_BTNTEXT,
-    COLOR_CAPTIONTEXT, COLOR_GRAYTEXT, COLOR_HIGHLIGHT, COLOR_HIGHLIGHTTEXT, COLOR_INACTIVEBORDER,
-    COLOR_INACTIVECAPTION, COLOR_MENU, COLOR_MENUTEXT, COLOR_SCROLLBAR, COLOR_WINDOW,
-    COLOR_WINDOWFRAME, COLOR_WINDOWTEXT, CS_BYTEALIGNCLIENT, CS_BYTEALIGNWINDOW, CS_CLASSDC,
-    CS_DBLCLKS, CS_DROPSHADOW, CS_GLOBALCLASS, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_PARENTDC,
-    CS_SAVEBITS, CS_VREDRAW, MAKEINTRESOURCEA, WNDCLASSEXA,
+    DefWindowProcA, RegisterClassExA, UnregisterClassA, COLOR_3DDKSHADOW, COLOR_3DFACE,
+    COLOR_3DHIGHLIGHT, COLOR_3DLIGHT, COLOR_3DSHADOW, COLOR_ACTIVEBORDER, COLOR_ACTIVECAPTION,
+    COLOR_APPWORKSPACE, COLOR_BTNTEXT, COLOR_CAPTIONTEXT, COLOR_DESKTOP,
+    COLOR_GRADIENTACTIVECAPTION, COLOR_GRADIENTINACTIVECAPTION, COLOR_GRAYTEXT, COLOR_HIGHLIGHT,
+    COLOR_HIGHLIGHTTEXT, COLOR_HOTLIGHT, COLOR_INACTIVEBORDER, COLOR_INACTIVECAPTION,
+    COLOR_INACTIVECAPTIONTEXT, COLOR_INFOBK, COLOR_INFOTEXT, COLOR_MENU, COLOR_MENUBAR,
+    COLOR_MENUHILIGHT, COLOR_MENUTEXT, COLOR_SCROLLBAR, COLOR_WINDOW, COLOR_WINDOWFRAME,
+    COLOR_WINDOWTEXT, CS_BYTEALIGNCLIENT, CS_BYTEALIGNWINDOW, CS_CLASSDC, CS_DBLCLKS,
+    CS_DROPSHADOW, CS_GLOBALCLASS, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_PARENTDC, CS_SAVEBITS,
+    CS_VREDRAW, MAKEINTRESOURCEA, WNDCLASSEXA,
 };
 
 /// Class styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/window-class-styles.
@@ -59,26 +62,108 @@ pub enum Style {
     VerticalRedraw = CS_VREDRAW as UINT,
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolor
 #[repr(i32)]
 pub enum Background {
+    /// Dark shadow for three-dimensional display elements.
+    DarkShadow3D = COLOR_3DDKSHADOW,
+
+    /// Face color for three-dimensional display elements and for dialog box backgrounds.
+    /// The associated foreground color is `ButtonText`.
+    /// Equivalent to `ButtonFace`.
+    Face3D = COLOR_3DFACE,
+
+    /// Highlight color for three-dimensional display elements (for edges facing the light source.)
+    /// Equivalent to `ButtonHighlight`.
+    Highlight3D = COLOR_3DHIGHLIGHT,
+
+    /// Light color for three-dimensional display elements (for edges facing the light source.)
+    Light3D = COLOR_3DLIGHT,
+
+    /// Shadow color for three-dimensional display elements (for edges facing away from the light source).
+    /// Equivalent to `ButtonShadow`.
+    Shadow3D = COLOR_3DSHADOW,
+
+    /// Active window border.
     ActiveBorder = COLOR_ACTIVEBORDER,
+
+    /// Active window title bar. The associated foreground color is `CaptionText`.
+    /// Specifies the left side color in the color gradient of an active window's title bar if
+    /// the gradient effect is enabled.
     ActiveCaption = COLOR_ACTIVECAPTION,
+
+    /// Background color of multiple document interface (MDI) applications.
     AppWorkspace = COLOR_APPWORKSPACE,
-    Background = COLOR_BACKGROUND,
-    ButtonFace = COLOR_BTNFACE,
-    ButtonShadow = COLOR_BTNSHADOW,
+
+    /// Text on push buttons. The associated background color is `ButtonFace`.
     ButtonText = COLOR_BTNTEXT,
-    Captiontext = COLOR_CAPTIONTEXT,
+
+    /// Text in caption, size box, and scroll bar arrow box. The associated background color is `ActiveCaption`.
+    CaptionText = COLOR_CAPTIONTEXT,
+
+    /// Desktop. Equivalent to `Background`.
+    Desktop = COLOR_DESKTOP,
+
+    /// Right side color in the color gradient of an active window's title bar. `ActiveCaption`
+    /// specifies the left side color.
+    GradientActiveCaption = COLOR_GRADIENTACTIVECAPTION,
+
+    /// Right side color in the color gradient of an inactive window's title bar. `InactiveCaption` specifies the left side color.
+    GradientInactiveCaption = COLOR_GRADIENTINACTIVECAPTION,
+
+    /// Grayed (disabled) text. This color is set to 0 if the current display driver does not support a solid gray color.
     GrayText = COLOR_GRAYTEXT,
+
+    /// Item(s) selected in a control. The associated foreground color is `HighlightText`.
     Highlight = COLOR_HIGHLIGHT,
+
+    /// Text of item(s) selected in a control. The associated background color is `Highlight`.
     HighlightText = COLOR_HIGHLIGHTTEXT,
+
+    /// Color for a hyperlink or hot-tracked item. The associated background color is `Window`.
+    HotLight = COLOR_HOTLIGHT,
+
+    /// Inactive window border.
     InactiveBorder = COLOR_INACTIVEBORDER,
+
+    /// Inactive window caption. The associated foreground color is `InactiveCaptionText`.
+    /// Specifies the left side color in the color gradient of an inactive window's title bar
+    /// if the gradient effect is enabled.
     InactiveCaption = COLOR_INACTIVECAPTION,
+
+    /// Color of text in an inactive caption. The associated background color is `InactiveCaption`.
+    InactiveCaptionText = COLOR_INACTIVECAPTIONTEXT,
+
+    /// Background color for tooltip controls. The associated foreground color is `InfoText`.
+    InfoBackground = COLOR_INFOBK,
+
+    /// Text color for tooltip controls. The associated background color is `InfoBackground`.
+    InfoText = COLOR_INFOTEXT,
+
+    /// Menu background. The associated foreground color is `MenuText`.
     Menu = COLOR_MENU,
+
+    /// The color used to highlight menu items when the menu appears as a flat menu.
+    /// The highlighted menu item is outlined with `Highlight`.
+    MenuHighlight = COLOR_MENUHILIGHT,
+
+    /// The background color for the menu bar when menus appear as flat menus. However, `Menu`
+    /// continues to specify the background color of the menu popup.
+    MenuBar = COLOR_MENUBAR,
+
+    /// Text in menus. The associated background color is `Menu`.
     MenuText = COLOR_MENUTEXT,
+
+    /// Scroll bar gray area.
     ScrollBar = COLOR_SCROLLBAR,
+
+    /// Window background. The associated foreground colors are `WindowText` and `HotLite`.
     Window = COLOR_WINDOW,
+
+    /// Window frame.
     WindowFrame = COLOR_WINDOWFRAME,
+
+    /// Text in windows. The associated background color is `Window`.
     WindowText = COLOR_WINDOWTEXT,
 }
 
