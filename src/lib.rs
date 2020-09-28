@@ -1,4 +1,5 @@
 #![cfg(windows)]
+pub mod bitmap;
 pub mod brush;
 pub mod class;
 pub mod cursor;
@@ -8,6 +9,7 @@ pub mod icon;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
+pub mod paint;
 pub mod toolbar;
 pub mod window;
 

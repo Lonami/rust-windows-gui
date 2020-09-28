@@ -9,8 +9,8 @@ use winapi::um::winuser::{
     LBN_SELCHANGE, MK_CONTROL, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON, MK_SHIFT, MK_XBUTTON1,
     MK_XBUTTON2, SIZE_MAXHIDE, SIZE_MAXIMIZED, SIZE_MAXSHOW, SIZE_MINIMIZED, SIZE_RESTORED,
     WM_CLOSE, WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY, WM_INITDIALOG,
-    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP,
-    WM_SIZE,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_PAINT, WM_RBUTTONDOWN,
+    WM_RBUTTONUP, WM_SIZE,
 };
 
 #[derive(Debug)]
@@ -53,6 +53,7 @@ pub enum Message {
     Destroy,
     Close,
     InitDialog,
+    Paint,
     LeftMouseButtonDown(MouseData),
     RightMouseButtonDown(MouseData),
     MiddleMouseButtonDown(MouseData),
@@ -251,6 +252,7 @@ impl Message {
             WM_DESTROY => Message::Destroy,
             WM_CLOSE => Message::Close,
             WM_INITDIALOG => Message::InitDialog,
+            WM_PAINT => Message::Paint,
             WM_LBUTTONDOWN => Message::LeftMouseButtonDown(MouseData { wparam, lparam }),
             WM_RBUTTONDOWN => Message::RightMouseButtonDown(MouseData { wparam, lparam }),
             WM_MBUTTONDOWN => Message::MiddleMouseButtonDown(MouseData { wparam, lparam }),

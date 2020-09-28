@@ -16,6 +16,7 @@ members = [
     "examples/dlg_two",
     "examples/dlg_three",
     "examples/ctl_one",
+    "examples/bmp_one",
 ]
 
 [patch.crates-io]

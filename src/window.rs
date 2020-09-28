@@ -1,6 +1,6 @@
 use crate::{
     base_instance, class, dialog, font, icon, menu, message, non_null_or_err, ok_or_last_err,
-    toolbar, DialogCallback, Error, MessageCallback, Result,
+    paint, toolbar, DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -983,6 +983,12 @@ impl Window<'_> {
     /// Causes the window to be resized with width and height of 0.
     pub fn restore(&self) {
         let _result = unsafe { SendMessageA(self.hwnd_ptr(), WM_SIZE, 0, 0) };
+    }
+
+    /// Prepares the window for painting and returns an object that can be used to perform paint
+    /// operations.
+    pub fn paint(&self) -> std::result::Result<paint::Paint, ()> {
+        paint::Paint::new(self)
     }
 }
 
