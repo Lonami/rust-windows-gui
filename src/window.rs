@@ -998,11 +998,7 @@ impl Drop for Window<'_> {
             Window::Owned { .. } => {
                 match self.destroy() {
                     Ok(_) => {}
-                    Err(e) => panic!(format!(
-                        "destroying window {:?} failed: {}",
-                        self.hwnd_ptr(),
-                        e,
-                    )),
+                    Err(e) => panic!("destroying window {:?} failed: {}", self.hwnd_ptr(), e,),
                 };
             }
             Window::Borrowed { .. } => {}

@@ -340,10 +340,10 @@ impl Drop for Class {
                     unsafe { UnregisterClassA(self.class_name_ptr(), std::ptr::null_mut()) };
 
                 if result == 0 {
-                    panic!(format!(
+                    panic!(
                         "class deleted by other means or some window still alive: {}",
                         Error::last_os_error()
-                    ))
+                    )
                 }
             }
             Class::Static { .. } => {}
