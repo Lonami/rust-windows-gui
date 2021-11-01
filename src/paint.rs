@@ -1,7 +1,7 @@
-use crate::{bitmap, brush, window};
+use crate::{bitmap, brush, rect, window};
 use std::mem;
 use std::ptr::{self, NonNull};
-use winapi::shared::windef::{HDC__, HGDIOBJ, LPRECT, RECT};
+use winapi::shared::windef::{HDC__, HGDIOBJ, LPRECT};
 use winapi::um::wingdi::{
     BitBlt, CreateCompatibleDC, DeleteDC, SelectObject, HGDI_ERROR, SRCAND, SRCCOPY, SRCPAINT,
 };
@@ -31,17 +31,8 @@ impl<'a> Paint<'a> {
             .map(|hdc| Paint { window, paint, hdc })
     }
 
-    pub fn fill_rect(
-        &self,
-        (x, y, width, height): (i32, i32, i32, i32),
-        brush: brush::Brush,
-    ) -> Result<(), ()> {
-        let mut rect = RECT {
-            left: x,
-            top: y,
-            right: x + width,
-            bottom: y + height,
-        };
+    pub fn fill_rect(&self, rect: rect::Rect, brush: brush::Brush) -> Result<(), ()> {
+        let mut rect = rect.0;
         let result = unsafe { FillRect(self.hdc.as_ptr(), &mut rect as LPRECT, brush.as_ptr()) };
         if result != 0 {
             Ok(())
@@ -52,50 +43,38 @@ impl<'a> Paint<'a> {
 
     pub fn and_bitmap_to_rect(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: rect::Rect,
         bmp: &bitmap::Bitmap,
         src_x: i32,
         src_y: i32,
     ) -> Result<(), ()> {
-        self.rop_bitmap_to_rect(x, y, width, height, bmp, src_x, src_y, SRCAND)
+        self.rop_bitmap_to_rect(rect, bmp, src_x, src_y, SRCAND)
     }
 
     pub fn copy_bitmap_to_rect(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: rect::Rect,
         bmp: &bitmap::Bitmap,
         src_x: i32,
         src_y: i32,
     ) -> Result<(), ()> {
-        self.rop_bitmap_to_rect(x, y, width, height, bmp, src_x, src_y, SRCCOPY)
+        self.rop_bitmap_to_rect(rect, bmp, src_x, src_y, SRCCOPY)
     }
 
     pub fn paint_bitmap_to_rect(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: rect::Rect,
         bmp: &bitmap::Bitmap,
         src_x: i32,
         src_y: i32,
     ) -> Result<(), ()> {
-        self.rop_bitmap_to_rect(x, y, width, height, bmp, src_x, src_y, SRCPAINT)
+        self.rop_bitmap_to_rect(rect, bmp, src_x, src_y, SRCPAINT)
     }
 
     // Raster operation to rect
     pub fn rop_bitmap_to_rect(
         &self,
-        x: i32,
-        y: i32,
-        width: i32,
-        height: i32,
+        rect: rect::Rect,
         bmp: &bitmap::Bitmap,
         src_x: i32,
         src_y: i32,
@@ -109,10 +88,10 @@ impl<'a> Paint<'a> {
         let result = unsafe {
             BitBlt(
                 self.hdc.as_ptr(),
-                x,
-                y,
-                width,
-                height,
+                rect.x(),
+                rect.y(),
+                rect.width(),
+                rect.height(),
                 hdc_mem.hdc.as_ptr(),
                 src_x,
                 src_y,

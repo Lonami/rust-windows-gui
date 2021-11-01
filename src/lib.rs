@@ -10,6 +10,7 @@ pub mod menu;
 pub mod message;
 pub mod messagebox;
 pub mod paint;
+pub mod rect;
 pub mod toolbar;
 pub mod window;
 

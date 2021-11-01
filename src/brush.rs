@@ -1,6 +1,8 @@
 use std::ptr::NonNull;
 use winapi::shared::windef::{HBRUSH, HBRUSH__, HGDIOBJ};
-use winapi::um::wingdi::{CreateSolidBrush, DeleteObject, GetStockObject, LTGRAY_BRUSH, RGB};
+use winapi::um::wingdi::{
+    CreateSolidBrush, DeleteObject, GetStockObject, LTGRAY_BRUSH, RGB, WHITE_BRUSH,
+};
 
 pub struct Brush {
     brush: NonNull<HBRUSH__>,
@@ -24,6 +26,13 @@ impl Brush {
     pub(crate) fn as_ptr(&self) -> HBRUSH {
         self.brush.as_ptr()
     }
+}
+
+pub fn white() -> Result<Brush, ()> {
+    let result = unsafe { GetStockObject(WHITE_BRUSH as i32) };
+    NonNull::new(result as HBRUSH)
+        .ok_or(())
+        .map(|brush| Brush { brush, stock: true })
 }
 
 pub fn light_gray() -> Result<Brush, ()> {

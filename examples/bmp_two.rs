@@ -62,17 +62,26 @@ fn main_window_callback(
 
                 let info = ball.info().unwrap();
                 let (w, h) = (info.width(), info.height());
+                let rect = win::rect::Rect::new(w, h);
 
-                paint.copy_bitmap_to_rect(0, 0, w, h, &mask, 0, 0).unwrap();
-                paint.and_bitmap_to_rect(w, 0, w, h, &mask, 0, 0).unwrap();
                 paint
-                    .and_bitmap_to_rect(w * 2, h * 2, w, h, &mask, 0, 0)
+                    .copy_bitmap_to_rect(rect.clone(), &mask, 0, 0)
+                    .unwrap();
+                paint
+                    .and_bitmap_to_rect(rect.at(w, 0), &mask, 0, 0)
+                    .unwrap();
+                paint
+                    .and_bitmap_to_rect(rect.at(w * 2, h * 2), &mask, 0, 0)
                     .unwrap();
 
-                paint.copy_bitmap_to_rect(0, h, w, h, &ball, 0, 0).unwrap();
-                paint.paint_bitmap_to_rect(w, h, w, h, &ball, 0, 0).unwrap();
                 paint
-                    .paint_bitmap_to_rect(w * 2, h * 2, w, h, &ball, 0, 0)
+                    .copy_bitmap_to_rect(rect.at(0, h), &ball, 0, 0)
+                    .unwrap();
+                paint
+                    .paint_bitmap_to_rect(rect.at(w, h), &ball, 0, 0)
+                    .unwrap();
+                paint
+                    .paint_bitmap_to_rect(rect.at(w * 2, h * 2), &ball, 0, 0)
                     .unwrap();
 
                 cell.set(Some((ball, mask)));

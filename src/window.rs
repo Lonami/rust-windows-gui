@@ -1,6 +1,6 @@
 use crate::{
     base_instance, class, dialog, font, icon, menu, message, non_null_or_err, ok_or_last_err,
-    paint, toolbar, DialogCallback, Error, MessageCallback, Result,
+    paint, rect, toolbar, DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -614,7 +614,7 @@ impl Window<'_> {
     /// upper-left and lower-right corners of the client area. Because client coordinates are
     // relative to the upper-left corner of a window's client area, the coordinates of the
     /// upper-left corner are (0, 0).
-    pub fn get_rect(&self) -> Result<(i32, i32, i32, i32)> {
+    pub fn get_rect(&self) -> Result<rect::Rect> {
         let mut rect = RECT {
             left: 0,
             top: 0,
@@ -622,28 +622,21 @@ impl Window<'_> {
             bottom: 0,
         };
         let result = unsafe { GetClientRect(self.hwnd_ptr(), &mut rect as LPRECT) };
-        ok_or_last_err(result).map(|_| {
-            (
-                rect.left,
-                rect.top,
-                rect.right - rect.left,
-                rect.bottom - rect.top,
-            )
-        })
+        ok_or_last_err(result).map(|_| rect::Rect(rect))
     }
 
     /// Changes the size and position of a child, pop-up, or top-level window.
     /// These windows are ordered according to their appearance on the screen.
     /// The topmost window receives the highest rank and is the first window in the Z order.
-    pub fn set_rect(&self, x: i32, y: i32, width: i32, height: i32) -> Result<()> {
+    pub fn set_rect(&self, rect: rect::Rect) -> Result<()> {
         let result = unsafe {
             SetWindowPos(
                 self.hwnd_ptr(),
                 ptr::null_mut(),
-                x,
-                y,
-                width,
-                height,
+                rect.x(),
+                rect.y(),
+                rect.width(),
+                rect.height(),
                 SWP_NOZORDER,
             )
         };

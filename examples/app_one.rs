@@ -70,7 +70,10 @@ fn main_window_callback(
         Message::Size(info) => {
             let edit_ctl = window.get_dialog_item(IDC_MAIN_EDIT).unwrap();
             edit_ctl
-                .set_rect(0, 0, info.width() as i32, info.height() as i32)
+                .set_rect(win::rect::Rect::new(
+                    info.width() as i32,
+                    info.height() as i32,
+                ))
                 .unwrap();
         }
         Message::Close => {

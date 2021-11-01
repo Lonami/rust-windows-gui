@@ -112,17 +112,21 @@ fn main_window_callback(
         Message::Size(_info) => {
             let tool_ctl = window.get_dialog_item(IDC_MAIN_TOOL).unwrap();
             tool_ctl.auto_size_toolbar();
-            let tool_height = tool_ctl.get_rect().unwrap().3;
+            let tool_height = tool_ctl.get_rect().unwrap().height();
 
             let status_ctl = window.get_dialog_item(IDC_MAIN_STATUS).unwrap();
             status_ctl.restore();
-            let status_height = status_ctl.get_rect().unwrap().3;
+            let status_height = status_ctl.get_rect().unwrap().height();
 
-            let (_x, _y, width, height) = window.get_rect().unwrap();
+            let window_rect = window.get_rect().unwrap();
 
             let edit_ctl = window.get_dialog_item(IDC_MAIN_EDIT).unwrap();
             edit_ctl
-                .set_rect(0, tool_height, width, height - tool_height - status_height)
+                .set_rect(
+                    window_rect
+                        .resized_by(0, -(tool_height + status_height))
+                        .at(0, tool_height),
+                )
                 .unwrap();
         }
         Message::Command(info) => match info
