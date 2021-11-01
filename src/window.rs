@@ -986,6 +986,11 @@ impl Window<'_> {
         paint::Paint::new(self)
     }
 
+    /// Like [`Self::paint`] but can be used outside of [`Message::Paint`] events.
+    pub fn repaint(&self) -> std::result::Result<paint::Paint, ()> {
+        paint::Paint::with_get_dc(self)
+    }
+
     /// Set a new timer, or replace it if the ID was in use before.
     pub fn set_timer(&self, timer_id: NonZeroUsize, interval: Duration) -> Result<()> {
         let result = unsafe {

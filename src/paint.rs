@@ -5,12 +5,13 @@ use winapi::shared::windef::{HDC__, HGDIOBJ, LPRECT};
 use winapi::um::wingdi::{
     BitBlt, CreateCompatibleDC, DeleteDC, SelectObject, HGDI_ERROR, SRCAND, SRCCOPY, SRCPAINT,
 };
-use winapi::um::winuser::{BeginPaint, EndPaint, FillRect, PAINTSTRUCT};
+use winapi::um::winuser::{BeginPaint, EndPaint, FillRect, GetDC, ReleaseDC, PAINTSTRUCT};
 
 pub struct Paint<'a> {
     window: &'a window::Window<'a>,
     paint: PAINTSTRUCT,
     hdc: NonNull<HDC__>,
+    release_dc: bool,
 }
 
 pub(crate) struct HDC {
@@ -26,9 +27,23 @@ impl<'a> Paint<'a> {
     pub(crate) fn new(window: &'a window::Window) -> Result<Self, ()> {
         let mut paint = unsafe { mem::zeroed() };
         let result = unsafe { BeginPaint(window.hwnd_ptr(), &mut paint) };
-        NonNull::new(result)
-            .ok_or(())
-            .map(|hdc| Paint { window, paint, hdc })
+        NonNull::new(result).ok_or(()).map(|hdc| Paint {
+            window,
+            paint,
+            hdc,
+            release_dc: false,
+        })
+    }
+
+    pub(crate) fn with_get_dc(window: &'a window::Window) -> Result<Self, ()> {
+        let paint = unsafe { mem::zeroed() };
+        let result = unsafe { GetDC(window.hwnd_ptr()) };
+        NonNull::new(result).ok_or(()).map(|hdc| Paint {
+            window,
+            paint,
+            hdc,
+            release_dc: true,
+        })
     }
 
     pub fn fill_rect(&self, rect: rect::Rect, brush: brush::Brush) -> Result<(), ()> {
@@ -143,7 +158,11 @@ impl HDC {
 
 impl Drop for Paint<'_> {
     fn drop(&mut self) {
-        let _result = unsafe { EndPaint(self.window.hwnd_ptr(), &mut self.paint) };
+        let _result = if self.release_dc {
+            unsafe { ReleaseDC(self.window.hwnd_ptr(), self.hdc.as_ptr()) }
+        } else {
+            unsafe { EndPaint(self.window.hwnd_ptr(), &mut self.paint) }
+        };
     }
 }
 
