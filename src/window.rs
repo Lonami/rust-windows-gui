@@ -4,7 +4,9 @@ use crate::{
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
+use std::num::NonZeroUsize;
 use std::ptr::{self, NonNull};
+use std::time::Duration;
 use winapi::ctypes::c_int;
 use winapi::shared::basetsd::INT_PTR;
 use winapi::shared::minwindef::{DWORD, LPARAM, TRUE, UINT, WPARAM};
@@ -16,24 +18,24 @@ use winapi::um::commctrl::{
 use winapi::um::winnt::LPCSTR;
 use winapi::um::winuser::{
     CreateDialogParamA, CreateWindowExA, DestroyWindow, DialogBoxParamA, EndDialog, GetClientRect,
-    GetDlgItem, PostMessageA, SendMessageA, SendMessageW, SetMenu, SetWindowPos, ShowWindow,
-    UpdateWindow, CW_USEDEFAULT, ES_AUTOHSCROLL, ES_AUTOVSCROLL, ES_CENTER, ES_LOWERCASE,
-    ES_MULTILINE, ES_NOHIDESEL, ES_NUMBER, ES_OEMCONVERT, ES_PASSWORD, ES_READONLY, ES_RIGHT,
-    ES_UPPERCASE, ES_WANTRETURN, ICON_BIG, ICON_SMALL, LB_ADDSTRING, LB_DELETESTRING, LB_ERR,
-    LB_ERRSPACE, LB_GETITEMDATA, LB_GETSELCOUNT, LB_GETSELITEMS, LB_RESETCONTENT, LB_SETITEMDATA,
-    MAKEINTRESOURCEA, SWP_NOZORDER, SW_FORCEMINIMIZE, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
-    SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED, SW_SHOWMINNOACTIVE, SW_SHOWNA,
-    SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_GETTEXT, WM_GETTEXTLENGTH, WM_INITDIALOG,
-    WM_NCDESTROY, WM_SETFONT, WM_SETICON, WM_SETTEXT, WM_SIZE, WS_BORDER, WS_CAPTION, WS_CHILD,
-    WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME, WS_EX_ACCEPTFILES, WS_EX_APPWINDOW,
-    WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP, WS_EX_CONTROLPARENT,
-    WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT, WS_EX_LEFTSCROLLBAR,
-    WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT, WS_EX_NOPARENTNOTIFY,
-    WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW, WS_EX_RIGHT,
-    WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
-    WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE, WS_OVERLAPPED,
-    WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP, WS_THICKFRAME,
-    WS_VISIBLE, WS_VSCROLL,
+    GetDlgItem, KillTimer, PostMessageA, SendMessageA, SendMessageW, SetMenu, SetTimer,
+    SetWindowPos, ShowWindow, UpdateWindow, CW_USEDEFAULT, ES_AUTOHSCROLL, ES_AUTOVSCROLL,
+    ES_CENTER, ES_LOWERCASE, ES_MULTILINE, ES_NOHIDESEL, ES_NUMBER, ES_OEMCONVERT, ES_PASSWORD,
+    ES_READONLY, ES_RIGHT, ES_UPPERCASE, ES_WANTRETURN, ICON_BIG, ICON_SMALL, LB_ADDSTRING,
+    LB_DELETESTRING, LB_ERR, LB_ERRSPACE, LB_GETITEMDATA, LB_GETSELCOUNT, LB_GETSELITEMS,
+    LB_RESETCONTENT, LB_SETITEMDATA, MAKEINTRESOURCEA, SWP_NOZORDER, SW_FORCEMINIMIZE, SW_HIDE,
+    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWDEFAULT, SW_SHOWMINIMIZED,
+    SW_SHOWMINNOACTIVE, SW_SHOWNA, SW_SHOWNOACTIVATE, SW_SHOWNORMAL, WM_CLOSE, WM_GETTEXT,
+    WM_GETTEXTLENGTH, WM_INITDIALOG, WM_NCDESTROY, WM_SETFONT, WM_SETICON, WM_SETTEXT, WM_SIZE,
+    WS_BORDER, WS_CAPTION, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED, WS_DLGFRAME,
+    WS_EX_ACCEPTFILES, WS_EX_APPWINDOW, WS_EX_CLIENTEDGE, WS_EX_COMPOSITED, WS_EX_CONTEXTHELP,
+    WS_EX_CONTROLPARENT, WS_EX_DLGMODALFRAME, WS_EX_LAYERED, WS_EX_LAYOUTRTL, WS_EX_LEFT,
+    WS_EX_LEFTSCROLLBAR, WS_EX_MDICHILD, WS_EX_NOACTIVATE, WS_EX_NOINHERITLAYOUT,
+    WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP, WS_EX_OVERLAPPEDWINDOW, WS_EX_PALETTEWINDOW,
+    WS_EX_RIGHT, WS_EX_RTLREADING, WS_EX_STATICEDGE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_EX_TRANSPARENT, WS_EX_WINDOWEDGE, WS_GROUP, WS_HSCROLL, WS_MAXIMIZE, WS_MINIMIZE,
+    WS_OVERLAPPED, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_POPUPWINDOW, WS_SYSMENU, WS_TABSTOP,
+    WS_THICKFRAME, WS_VISIBLE, WS_VSCROLL,
 };
 
 /// Extended window styles as defined in https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles.
@@ -982,6 +984,29 @@ impl Window<'_> {
     /// operations.
     pub fn paint(&self) -> std::result::Result<paint::Paint, ()> {
         paint::Paint::new(self)
+    }
+
+    /// Set a new timer, or replace it if the ID was in use before.
+    pub fn set_timer(&self, timer_id: NonZeroUsize, interval: Duration) -> Result<()> {
+        let result = unsafe {
+            SetTimer(
+                self.hwnd_ptr(),
+                timer_id.get(),
+                interval.as_millis() as u32,
+                None,
+            )
+        };
+        if result != 0 {
+            Ok(())
+        } else {
+            Err(Error::last_os_error())
+        }
+    }
+
+    /// Kill an existing timer. This stops timer messages from the given timer to stop arriving.
+    pub fn kill_timer(&self, timer_id: NonZeroUsize) -> Result<()> {
+        let result = unsafe { KillTimer(self.hwnd_ptr(), timer_id.get()) };
+        ok_or_last_err(result)
     }
 }
 

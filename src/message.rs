@@ -10,11 +10,17 @@ use winapi::um::winuser::{
     MK_XBUTTON2, SIZE_MAXHIDE, SIZE_MAXIMIZED, SIZE_MAXSHOW, SIZE_MINIMIZED, SIZE_RESTORED,
     WM_CLOSE, WM_COMMAND, WM_CREATE, WM_CTLCOLORDLG, WM_CTLCOLORSTATIC, WM_DESTROY, WM_INITDIALOG,
     WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_PAINT, WM_RBUTTONDOWN,
-    WM_RBUTTONUP, WM_SIZE,
+    WM_RBUTTONUP, WM_SIZE, WM_TIMER,
 };
 
 #[derive(Debug)]
 pub struct SizeData {
+    wparam: WPARAM,
+    lparam: LPARAM,
+}
+
+#[derive(Debug)]
+pub struct TimerData {
     wparam: WPARAM,
     lparam: LPARAM,
 }
@@ -54,6 +60,7 @@ pub enum Message {
     Close,
     InitDialog,
     Paint,
+    Timer(TimerData),
     LeftMouseButtonDown(MouseData),
     RightMouseButtonDown(MouseData),
     MiddleMouseButtonDown(MouseData),
@@ -112,6 +119,13 @@ impl SizeData {
     /// The new height of the client area.
     pub fn height(&self) -> u16 {
         HIWORD(self.lparam as u32)
+    }
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-timer
+impl TimerData {
+    pub fn timer_id(&self) -> usize {
+        self.wparam
     }
 }
 
@@ -253,6 +267,7 @@ impl Message {
             WM_CLOSE => Message::Close,
             WM_INITDIALOG => Message::InitDialog,
             WM_PAINT => Message::Paint,
+            WM_TIMER => Message::Timer(TimerData { wparam, lparam }),
             WM_LBUTTONDOWN => Message::LeftMouseButtonDown(MouseData { wparam, lparam }),
             WM_RBUTTONDOWN => Message::RightMouseButtonDown(MouseData { wparam, lparam }),
             WM_MBUTTONDOWN => Message::MiddleMouseButtonDown(MouseData { wparam, lparam }),
