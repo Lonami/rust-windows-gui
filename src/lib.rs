@@ -1,15 +1,13 @@
 #![cfg(windows)]
-pub mod bitmap;
-pub mod brush;
 pub mod class;
 pub mod cursor;
 pub mod dialog;
 pub mod font;
+pub mod gdi;
 pub mod icon;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
-pub mod paint;
 pub mod rect;
 pub mod toolbar;
 pub mod window;

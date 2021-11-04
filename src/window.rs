@@ -1,6 +1,6 @@
 use crate::{
-    base_instance, class, dialog, font, icon, menu, message, non_null_or_err, ok_or_last_err,
-    paint, rect, toolbar, DialogCallback, Error, MessageCallback, Result,
+    base_instance, class, dialog, font, gdi, icon, menu, message, non_null_or_err, ok_or_last_err,
+    rect, toolbar, DialogCallback, Error, MessageCallback, Result,
 };
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -354,6 +354,7 @@ pub struct Builder<'a> {
     callback: Option<MessageCallback>,
 }
 
+#[derive(Debug)]
 pub enum Window<'a> {
     Owned {
         _window_name: CString,
@@ -982,13 +983,13 @@ impl Window<'_> {
 
     /// Prepares the window for painting and returns an object that can be used to perform paint
     /// operations.
-    pub fn paint(&self) -> std::result::Result<paint::Paint, ()> {
-        paint::Paint::new(self)
+    pub fn paint<'w>(&'w self) -> std::result::Result<gdi::Canvas<'w, 'w>, ()> {
+        gdi::Canvas::from_window(self)
     }
 
     /// Like [`Self::paint`] but can be used outside of [`Message::Paint`] events.
-    pub fn repaint(&self) -> std::result::Result<paint::Paint, ()> {
-        paint::Paint::with_get_dc(self)
+    pub fn repaint<'w>(&'w self) -> std::result::Result<gdi::Canvas<'w, 'w>, ()> {
+        gdi::Canvas::from_window_settings(self)
     }
 
     /// Set a new timer, or replace it if the ID was in use before.

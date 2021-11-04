@@ -1,20 +1,19 @@
-use crate::{base_instance, non_null_or_err, paint};
+use super::{Canvas, Paint};
+use crate::{base_instance, non_null_or_err};
+
 use std::ffi::CString;
 use std::mem;
 use std::ptr::{self, NonNull};
 use winapi::shared::minwindef::LPVOID;
 use winapi::shared::windef::{HBITMAP, HBITMAP__, HGDIOBJ};
-use winapi::um::wingdi::{
-    BitBlt, CreateBitmap, DeleteObject, GetObjectA, SetBkColor, BITMAP, CLR_INVALID, RGB, SRCCOPY,
-    SRCINVERT,
-};
+use winapi::um::wingdi::{CreateBitmap, DeleteObject, GetObjectA, BITMAP};
 use winapi::um::winnt::{HANDLE, LPCSTR};
 use winapi::um::winuser::{
     LoadBitmapA, LoadImageA, IMAGE_BITMAP, LR_LOADFROMFILE, MAKEINTRESOURCEA,
 };
 
 pub struct Bitmap {
-    bitmap: NonNull<HBITMAP__>,
+    pub(crate) bitmap: NonNull<HBITMAP__>,
 }
 
 pub struct Info {
@@ -79,69 +78,44 @@ impl Bitmap {
         }
     }
 
-    pub(crate) fn as_gdi_obj(&self) -> HGDIOBJ {
-        self.bitmap.as_ptr() as HGDIOBJ
+    /// Replace all pixels with the given color with a transparent pixel.
+    ///
+    /// This essentially tells the bitmap which color to treat as transparent.
+    ///
+    /// The mask used to update self is returned.
+    pub fn set_color_transparent(&self, (r, g, b): (u8, u8, u8)) -> Result<Bitmap, ()> {
+        let info = self.info().unwrap();
+
+        // Create the bitmap that will hold the object mask (single plane, single bit depth).
+        let mask_bmp = new(info.width(), info.height(), 1, 1).unwrap();
+
+        // Create the canvas we can operate on (and drop it or the bmp will remain held).
+        {
+            let masked = Canvas::from_current_screen()
+                .unwrap()
+                .bind(self)
+                .map_err(drop) // TODO remove this once it impls debug
+                .unwrap();
+
+            let mask = Canvas::from_current_screen()
+                .unwrap()
+                .bind(&mask_bmp)
+                .map_err(drop) // TODO remove this once it impls debug
+                .unwrap();
+
+            // Here's where the magic happens.
+            masked.set_background((r, g, b)).unwrap();
+            mask.bitwise().set(&masked).unwrap();
+            masked.bitwise().xor(&mask).unwrap();
+        }
+
+        Ok(mask_bmp)
     }
+}
 
-    // TODO highly-specific?
-    // A better abstraction would own objects and turn them into "in-use objects" that can be
-    // converted back into the original object after its use is over (creating a new DC).
-    pub fn into_mask(
-        &self,
-        template: &Bitmap,
-        size: (i32, i32),
-        transparent: (u8, u8, u8),
-    ) -> Result<(), ()> {
-        let hdc = paint::HDC::new()?;
-        let hdc2 = paint::HDC::new()?;
-
-        let _guard = hdc.select_object(template)?;
-        let _guard2 = hdc2.select_object(self)?;
-
-        let result = unsafe {
-            SetBkColor(
-                hdc.as_ptr(),
-                RGB(transparent.0, transparent.1, transparent.2),
-            )
-        };
-        if result == CLR_INVALID {
-            return Err(());
-        }
-
-        let result = unsafe {
-            BitBlt(
-                hdc2.as_ptr(),
-                0,
-                0,
-                size.0,
-                size.1,
-                hdc.as_ptr(),
-                0,
-                0,
-                SRCCOPY,
-            )
-        };
-        if result == 0 {
-            return Err(());
-        }
-        let result = unsafe {
-            BitBlt(
-                hdc.as_ptr(),
-                0,
-                0,
-                size.0,
-                size.1,
-                hdc2.as_ptr(),
-                0,
-                0,
-                SRCINVERT,
-            )
-        };
-        if result == 0 {
-            return Err(());
-        }
-
-        Ok(())
+impl Paint for Bitmap {
+    fn as_gdi_obj(&self) -> HGDIOBJ {
+        self.bitmap.as_ptr() as HGDIOBJ
     }
 }
 
