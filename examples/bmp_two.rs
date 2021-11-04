@@ -63,13 +63,7 @@ fn main_window_callback(
                 let rect = win::rect::Rect::new(w, h);
 
                 {
-                    let canvas = paint
-                        .try_clone()
-                        .unwrap()
-                        .bind(&mask)
-                        .map_err(drop) // TODO remove this once it impls debug
-                        .unwrap();
-
+                    let canvas = paint.try_clone().unwrap().bind(&mask).unwrap();
                     paint.bitwise().region(rect.at(0, 0)).set(&canvas).unwrap();
                     paint.bitwise().region(rect.at(w, 0)).and(&canvas).unwrap();
                     paint
@@ -78,11 +72,7 @@ fn main_window_callback(
                         .and(&canvas)
                         .unwrap();
 
-                    let canvas = canvas
-                        .bind(&ball)
-                        .map_err(drop) // TODO remove this once it impls debug
-                        .unwrap();
-
+                    let canvas = canvas.bind(&ball).unwrap();
                     paint.bitwise().region(rect.at(0, h)).set(&canvas).unwrap();
                     paint.bitwise().region(rect.at(w, h)).or(&canvas).unwrap();
                     paint

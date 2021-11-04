@@ -10,6 +10,7 @@
 use super::{brush, Bitmap, Paint};
 use crate::{rect, window};
 
+use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::{self, NonNull};
@@ -21,6 +22,7 @@ use winapi::um::wingdi::{
 };
 use winapi::um::winuser::{BeginPaint, EndPaint, FillRect, GetDC, ReleaseDC, PAINTSTRUCT};
 
+#[derive(Debug)]
 pub struct Canvas<'w, 'p>
 where
     'w: 'p,
@@ -46,6 +48,7 @@ enum Mode<'w> {
     Moved,
 }
 
+#[derive(Debug)]
 enum Selection<'p> {
     Default,
     Custom {
@@ -320,6 +323,23 @@ impl Drop for Canvas<'_, '_> {
                     Mode::Moved => "moved",
                 }
             )
+        }
+    }
+}
+
+impl fmt::Debug for Mode<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Paint { window, .. } => f
+                .debug_struct("Paint")
+                .field("window", window)
+                .finish_non_exhaustive(),
+            Self::BorrowedDc { window } => f
+                .debug_struct("BorrowedDc")
+                .field("window", window)
+                .finish(),
+            Self::OwnedDc => f.debug_struct("OwnedDc").finish(),
+            Self::Moved => f.debug_struct("Moved").finish(),
         }
     }
 }

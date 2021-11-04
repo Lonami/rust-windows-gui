@@ -12,6 +12,7 @@ use winapi::um::winuser::{
     LoadBitmapA, LoadImageA, IMAGE_BITMAP, LR_LOADFROMFILE, MAKEINTRESOURCEA,
 };
 
+#[derive(Debug)]
 pub struct Bitmap {
     pub(crate) bitmap: NonNull<HBITMAP__>,
 }

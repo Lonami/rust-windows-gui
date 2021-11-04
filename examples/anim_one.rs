@@ -129,13 +129,13 @@ fn draw_ball(global: &mut Global, paint: &win::gdi::Canvas, rect: win::rect::Rec
     let ball_rect = win::rect::Rect::new(global.width, global.height).at(global.x, global.y);
     let canvas = paint.try_clone().unwrap();
 
-    let canvas = canvas.bind(&global.mask).map_err(drop).unwrap();
+    let canvas = canvas.bind(&global.mask).unwrap();
     paint
         .bitwise()
         .region(ball_rect.clone())
         .and(&canvas)
         .unwrap();
-    let canvas = canvas.bind(&global.ball).map_err(drop).unwrap();
+    let canvas = canvas.bind(&global.ball).unwrap();
     paint
         .bitwise()
         .region(ball_rect.clone())

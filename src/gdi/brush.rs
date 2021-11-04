@@ -4,6 +4,7 @@ use winapi::um::wingdi::{
     CreateSolidBrush, DeleteObject, GetStockObject, LTGRAY_BRUSH, RGB, WHITE_BRUSH,
 };
 
+#[derive(Debug)]
 pub struct Brush {
     brush: NonNull<HBRUSH__>,
     stock: bool,
