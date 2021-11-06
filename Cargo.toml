@@ -1,5 +1,5 @@
 [package]
-name = "winapi-app-windows"
+name = "minimal-windows-gui"
 version = "0.1.0"
 authors = ["Lonami Exo <totufals@hotmail.com>"]
 edition = "2018"
@@ -20,4 +20,4 @@ members = [
 ]
 
 [patch.crates-io]
-winapi-app-windows = { path = "." }
+mui = { path = ".", package = "minimal-windows-gui" }
