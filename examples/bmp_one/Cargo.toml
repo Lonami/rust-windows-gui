@@ -6,7 +6,7 @@ edition = "2018"
 build = "src/build.rs"
 
 [target.'cfg(windows)'.dependencies]
-winapi-app-windows = "*"
+minimal-windows-gui = "*"
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "1.3.3"

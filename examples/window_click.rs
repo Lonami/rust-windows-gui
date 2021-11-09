@@ -1,7 +1,7 @@
 //! Add the capability to show the user what the name of our program is when they click on our window.
 //! http://winprog.org/tutorial/window_click.html
+use minimal_windows_gui as win;
 use std::process::exit;
-use winapi_app_windows as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

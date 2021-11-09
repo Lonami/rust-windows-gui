@@ -1,7 +1,7 @@
 //! (Mostly) the simplest windows program you can write that actually creates a functional window.
 //! http://winprog.org/tutorial/simple_window.html
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

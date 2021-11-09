@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::num::NonZeroUsize;
 use std::process::exit;
 use std::time::Duration;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 const ID_TIMER: usize = 1;

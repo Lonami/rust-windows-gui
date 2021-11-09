@@ -1,7 +1,7 @@
 //! Dialogs are just windows, which can be defined as dialog resources.
 //! http://winprog.org/tutorial/dialogs.html
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

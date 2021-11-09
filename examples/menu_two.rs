@@ -1,7 +1,7 @@
 //! Shows how to add basic menus and icons to your window during runtime.
 //! http://winprog.org/tutorial/menus.html
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

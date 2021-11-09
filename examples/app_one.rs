@@ -1,7 +1,7 @@
 //! Starting the workings of a text editor.
 //! http://winprog.org/tutorial/app_one.html
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

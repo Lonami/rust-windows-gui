@@ -2,7 +2,7 @@
 //! http://winprog.org/tutorial/bitmaps.html
 use std::cell::Cell;
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 

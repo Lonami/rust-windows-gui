@@ -2,7 +2,7 @@
 //! http://winprog.org/tutorial/dlgfaq.html
 use std::cell::Cell;
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const IDD_MAIN: u16 = 101;
 

@@ -1,6 +1,6 @@
 //! The simplest Win32 program.
 //! http://winprog.org/tutorial/start.html
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 // For a "Win32 GUI" project the entry point is the following:
 //

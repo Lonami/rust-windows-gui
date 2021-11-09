@@ -24,8 +24,7 @@ use winapi::um::winuser::{
     DispatchMessageA, GetMessageA, PostQuitMessage, TranslateMessage, LPMSG, MSG,
 };
 
-pub use std::io::Error;
-pub type Result<T> = std::io::Result<T>;
+pub use std::io::{Error, Result};
 pub type MessageCallback = fn(&window::Window, message::Message) -> Option<isize>;
 pub type DialogCallback = fn(&window::Window, message::Message) -> isize;
 

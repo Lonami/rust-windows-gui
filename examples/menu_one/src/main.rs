@@ -2,7 +2,7 @@
 //! These will be in an `.rc` file, which will be compiled and linked into the `.exe`.
 //! http://winprog.org/tutorial/menus.html
 use std::process::exit;
-use winapi_app_windows as win;
+use minimal_windows_gui as win;
 
 const CLASS_NAME: &str = "myWindowClass";
 
