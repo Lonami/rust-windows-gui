@@ -544,7 +544,7 @@ impl<'a> Builder<'a> {
 }
 
 impl Window<'_> {
-    pub(crate) fn hwnd_ptr(&self) -> HWND {
+    pub fn hwnd_ptr(&self) -> HWND {
         match self {
             Window::Owned { hwnd, .. } => hwnd.as_ptr(),
             Window::Borrowed { hwnd } => hwnd.as_ptr(),
