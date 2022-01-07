@@ -1020,10 +1020,8 @@ impl Drop for Window<'_> {
     fn drop(&mut self) {
         match self {
             Window::Owned { .. } => {
-                match self.destroy() {
-                    Ok(_) => {}
-                    Err(e) => panic!("destroying window {:?} failed: {}", self.hwnd_ptr(), e,),
-                };
+                // ignore err (probably destroyed before; TODO cleaner way to avoid double-destroy)
+                drop(self.destroy());
             }
             Window::Borrowed { .. } => {}
         }
