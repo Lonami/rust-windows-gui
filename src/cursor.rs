@@ -3,9 +3,9 @@ use std::ptr::{self, NonNull};
 use winapi::shared::windef::HICON__;
 use winapi::um::winnt::LPCWSTR;
 use winapi::um::winuser::{
-    LoadCursorW, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_ICON,
-    IDC_NO, IDC_SIZE, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_UPARROW,
-    IDC_WAIT,
+    LoadCursorW, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND,
+    IDC_HELP, IDC_IBEAM, IDC_ICON, IDC_NO, IDC_SIZE, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS,
+    IDC_SIZENWSE, IDC_SIZEWE, IDC_UPARROW, IDC_WAIT,
 };
 
 /// Built-in cursors as defined in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadcursorw.

@@ -424,23 +424,23 @@ impl<'a> Builder<'a> {
     }
 
     /// The initial horizontal position of the window. For an overlapped or pop-up window, the x parameter is the initial x-coordinate of the window's upper-left corner, in screen coordinates. For a child window, x is the x-coordinate of the upper-left corner of the window relative to the upper-left corner of the parent window's client area. If x is kept to its default value, the system selects the default position for the window's upper-left corner and ignores the y parameter. The default value is valid only for overlapped windows; if it is specified for a pop-up or child window, the x and y parameters are set to zero.
-    pub fn x(mut self, x: u16) -> Self {
-        self.x = x as i32;
+    pub fn x(mut self, x: i32) -> Self {
+        self.x = x;
         self
     }
 
     /// The initial vertical position of the window. For an overlapped or pop-up window, the y parameter is the initial y-coordinate of the window's upper-left corner, in screen coordinates. For a child window, y is the initial y-coordinate of the upper-left corner of the child window relative to the upper-left corner of the parent window's client area. For a list box y is the initial y-coordinate of the upper-left corner of the list box's client area relative to the upper-left corner of the parent window's client area.
     ///
     /// If an overlapped window is created with the `Visible` style bit set and the x parameter is set to its default value, then the y parameter determines how the window is shown. If the y parameter is using the default value, then the window manager calls `Window::show` with the `Show` flag after the window has been created. If the y parameter is some other value, then the window manager calls ShowWindow with that value as the nCmdShow parameter.
-    pub fn y(mut self, y: u16) -> Self {
-        self.y = y as i32;
+    pub fn y(mut self, y: i32) -> Self {
+        self.y = y;
         self
     }
 
     /// The initial position of the window (equivalent to modifying both `x` and `y`).
-    pub fn pos(mut self, x: u16, y: u16) -> Self {
-        self.x = x as i32;
-        self.y = y as i32;
+    pub fn pos(mut self, x: i32, y: i32) -> Self {
+        self.x = x;
+        self.y = y;
         self
     }
 
