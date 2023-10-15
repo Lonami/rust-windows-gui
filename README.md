@@ -34,6 +34,48 @@ So, this is my own personal take on this thing. It's very minimal. You can expec
 level of abstraction, but don't expect a full-blown DSL or fancy derive macros. If you're doing
 anything half-serious, you may want to consider a different toolkit.
 
+## Ported theForger's examples
+
+To run a `file.rs`-based example, use:
+
+```sh
+cargo run --example file
+```
+
+To run a `folder/`-based example, use:
+
+```sh
+cargo run --manifest-path examples/folder/Cargo.toml
+```
+
+To run all of them:
+
+```sh
+for f in examples/*; do test -f "$f" && { cargo run --example $(basename "$f" .rs); } || { cargo run --manifest-path $f/Cargo.toml; }; done
+```
+
+* Basics
+  * Getting Started: `intro.rs`. Displays a message box and exits.
+  * A Simple Window: `simple_window.rs`. A blank window with default behaviour.
+  * Handling Messages: `window_click.rs`. A window that reacts to click events.
+  * The Message Loop: No full program examples in this section.
+  * Using Resources:  No full program examples in this section.
+  * Menus and Icons: `menu_one/`, `menu_two.rs`. A window with toolbar actions, using resources and created programatically, respectively.
+  * Dialog Boxes: `dlg_one/`. A window with a toolbar action to open a custom About dialog.
+  * Modeless Dialogs: `dlg_two/`. A window with a dialog pre-opened that cannot be closed.
+  * Standard Controls: `ctl_one/`. A complex window layout with text inputs, scrollable lists, and buttons.
+  * Dialog FAQ: `dlg_three/`. A window with a custom background color.
+* Creating a simple application
+  * Creating controls at runtime. `app_one.rs`. A window with a text area with scrollbars in both directions and a resize grip.
+  * Files and the common dialogs. `app_two.rs`. Builds on top of `app_one` and adds a window with a toolbar to open the standard *Open File* and *Save As* dialogs.
+  * Tool and Status bars. `app_three.rs`. Builds on top of `app_two` and adds a status bar and icon bar as an alternative to the toolbar.
+  * Multiple Document Interface. Not ported yet. Builds on top of `app_three` and adds nested windows that are contained within the main window.
+* Graphics Device Interface
+  * Bitmaps and Device Contexts. `bmp_one/`. A window that loads and displays a bitmap.
+  * Transparency. `bmp_two.rs`. A window that loads and displays a bitmap with different masks applied.
+  * Timers and Animation. `anim_one.rs`. A window that loads a bitmap and uses a timer to animate it.
+  * Text, Fonts and Colours. Not ported yet. A window that uses a custom font in its text area.
+
 [winapi]: https://docs.microsoft.com/en-us/windows/win32/apiindex/windows-api-list
 [winapi-tut]: http://winprog.org/tutorial/
 [using-res]: http://winprog.org/tutorial/resources.html

@@ -7,7 +7,7 @@ use minimal_windows_gui as win;
 const IDD_MAIN: u16 = 101;
 
 thread_local! {
-    static BACKGROUND_BRUSH: Cell<Option<win::brush::Brush>> = Cell::new(None);
+    static BACKGROUND_BRUSH: Cell<Option<win::gdi::brush::Brush>> = Cell::new(None);
 }
 
 fn main() -> win::Result<()> {
@@ -20,7 +20,7 @@ fn dialog_callback(dialog: &win::window::Window, message: win::message::Message)
 
     match message {
         Message::InitDialog => {
-            let brush = win::brush::Brush::new_solid_rgb(0, 0, 0).unwrap();
+            let brush = win::gdi::brush::Brush::new_solid_rgb(0, 0, 0).unwrap();
             BACKGROUND_BRUSH.with(|cell| cell.set(Some(brush)));
 
             dialog.set_icon(win::icon::Icon::Application).unwrap();
